@@ -54,3 +54,60 @@ Plataforma donde profesionales publican sus proyectos y otros usuarios pueden ex
 - Este modelo es generalizable a cualquier tipo de profesional (arquitectos, diseñadores, abogados, fotógrafos, etc.).  
 - La plataforma permite tanto **mostrar proyectos** como **descubrir y contactar profesionales**.  
 - La interacción puede ampliarse en el futuro con comentarios, likes, favoritos, filtros por categoría, etc.
+
+---
+
+## Tecnologías Utilizadas
+
+- Python
+- Django
+- Django REST Framework
+- SQLite 
+
+## Requisitos Previos
+
+Antes de ejecutar el proyecto, asegurar de tener instalado:
+
+- Python 3
+- pip (gestor de paquetes de Python)
+- Git
+- Visual Studio Code
+
+Opcional:
+- Postman (para probar la API)
+- DBeaver (para gestionar la base de datos)
+
+**Verificar instalación:**
+python --version
+pip --version
+
+## Instalación
+
+1. Clonar el repositorio:
+git clone <URL_DEL_REPOSITORIO>
+cd <NOMBRE_DEL_PROYECTO>
+
+2. Crear entorno virtual:
+python -m venv venv
+
+3. Activar el entorno virtual:
+venv\Scripts\Activate.ps1
+
+4. Instalar dependencias:
+pip install -r requirements.txt
+
+## Ejecución
+
+1. Aplicar migraciones:
+python manage.py migrate
+
+2. Crear superusuario:
+python manage.py createsuperuser
+
+3. Ejecutar servidor:
+python manage.py runserver
+
+4. Acceder al sistema:
+
+- Backend: http://127.0.0.1:8000/
+- Admin: http://127.0.0.1:8000/admin/
