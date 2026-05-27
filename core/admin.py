@@ -1,24 +1,25 @@
 from django.contrib import admin
-from .models import User, Portfolio, Project, Media, Contact
+from .models import User, ProfessionalProfile, Project, Media, Contact
 
 # Register your models here.
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('username', 'email', 'role', 'is_active')
-    list_filter = ('role', 'is_active')
+    list_display = ('username', 'email', 'is_active')
+    list_filter = ('is_active',)
     search_fields = ('username', 'email')
 
 
-@admin.register(Portfolio)
-class PortfolioAdmin(admin.ModelAdmin):
-    list_display = ('name', 'user', 'created_at')
+@admin.register(ProfessionalProfile)
+class ProfessionalProfileAdmin(admin.ModelAdmin):
+    list_display = ('name', 'specialty', 'contact_email', 'created_at')
     list_filter = ('created_at',)
-    search_fields = ('name', 'user__username')
+    search_fields = ('name', 'users__username', 'users__email')
+    filter_horizontal = ('users',)
 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('title', 'portfolio', 'category', 'created_at')
+    list_display = ('title', 'profile', 'category', 'created_at')
     list_filter = ('category', 'created_at')
     search_fields = ('title',)
 
@@ -31,6 +32,6 @@ class MediaAdmin(admin.ModelAdmin):
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
-    list_display = ('name', 'portfolio', 'created_at')
+    list_display = ('name', 'profile', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('name', 'email')
