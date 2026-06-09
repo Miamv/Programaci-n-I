@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserViewSet,
-    PortfolioViewSet,
+    ProfessionalProfileViewSet,
     ProjectViewSet,
     MediaViewSet,
     ContactViewSet
@@ -11,7 +11,7 @@ from .views import (
 router = DefaultRouter()
 
 router.register(r'users', UserViewSet)
-router.register(r'portfolios', PortfolioViewSet)
+router.register(r'profiles', ProfessionalProfileViewSet)
 router.register(r'projects', ProjectViewSet)
 router.register(r'media', MediaViewSet)
 router.register(r'contacts', ContactViewSet)

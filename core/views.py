@@ -1,22 +1,29 @@
 from rest_framework import viewsets
-from .models import User, Portfolio, Project, Media, Contact
+from rest_framework.permissions import IsAuthenticated
+from .models import User, ProfessionalProfile, Project, Media, Contact
 from .serializers import (
     UserSerializer,
-    PortfolioSerializer,
+    ProfessionalProfileSerializer,
     ProjectSerializer,
     MediaSerializer,
-    ContactSerializer
+    ContactSerializer,
 )
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return User.objects.all()
+        return User.objects.filter(pk=self.request.user.pk)
 
 
-class PortfolioViewSet(viewsets.ModelViewSet):
-    queryset = Portfolio.objects.all()
-    serializer_class = PortfolioSerializer
+class ProfessionalProfileViewSet(viewsets.ModelViewSet):
+    queryset = ProfessionalProfile.objects.all()
+    serializer_class = ProfessionalProfileSerializer
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -32,4 +39,3 @@ class MediaViewSet(viewsets.ModelViewSet):
 class ContactViewSet(viewsets.ModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
-    
