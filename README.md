@@ -121,11 +121,12 @@ python -m venv venv
 venv\Scripts\Activate.ps1
 
 4. Instalar dependencias:
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 ## Ejecución
 
 1. Aplicar migraciones:
+cd backend
 python manage.py migrate
 
 2. Crear superusuario:
