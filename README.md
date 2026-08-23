@@ -75,6 +75,29 @@ El objetivo es permitir que profesionales o equipos de trabajo puedan:
 
 ---
 
+## Roles y permisos (RBAC)
+
+| Rol | Permisos |
+|-----|----------|
+| `ADMIN` | Acceso total: administra usuarios, perfiles, proyectos y contenido. |
+| `OWNER` | Crea y elimina proyectos; administra sus propios perfiles profesionales. |
+| `COLLABORATOR` | Edita proyectos y sube contenido multimedia de los perfiles a los que pertenece. |
+| `VIEWER` | Solo lectura. Rol por defecto al registrarse (no puede asignarse por el cliente). |
+
+### Asignación de roles
+
+El registro fuerza el rol `VIEWER` por seguridad. La asignación de roles (`OWNER`,
+`COLLABORATOR`, `ADMIN`) se realiza desde el panel de administración:
+
+1. Crear un superusuario: `python manage.py createsuperuser`
+2. Ingresar a http://127.0.0.1:8000/admin/
+3. En **Usuarios**, seleccionar el usuario y cambiar el campo **Rol**.
+
+La asociación de usuarios a un perfil profesional se realiza desde el admin en
+**Perfiles profesionales** (campo `users`).
+
+---
+
 ## Notas
 
 - El sistema está orientado principalmente a la exhibición profesional y comercial de proyectos.

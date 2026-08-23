@@ -1,5 +1,7 @@
+from django.contrib.auth import get_user_model
 from rest_framework import permissions
-from users.models import User
+
+User = get_user_model()
 
 class IsAdminRole(permissions.BasePermission):
     """Permiso para usuarios con rol ADMIN."""
@@ -74,26 +76,3 @@ class CanManageProfile(permissions.BasePermission):
         if request.user.role == User.RoleChoices.ADMIN:
             return True
         return obj.users.filter(id=request.user.id).exists()
-
-class CanManageUser(permissions.BasePermission):
-    """
-    ADMIN puede administrar cualquier usuario.
-    OWNER puede administrar usuarios asociados a sus perfiles profesionales.
-    """
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return request.user.role in [User.RoleChoices.ADMIN, User.RoleChoices.OWNER]
-
-    def has_object_permission(self, request, view, obj):
-        if request.user.role == User.RoleChoices.ADMIN:
-            return True
-        
-        if request.user.role == User.RoleChoices.OWNER:
-            # Verifica si el usuario a gestionar comparte al menos un perfil con el OWNER
-            # Esto implica que el usuario es un colaborador o co-owner de su estudio
-            return obj.professional_profiles.filter(
-                users__id=request.user.id
-            ).exists()
-            
-        return False

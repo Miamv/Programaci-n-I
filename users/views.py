@@ -1,11 +1,14 @@
-from rest_framework import generics, status, views
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserRegisterSerializer, UserProfileSerializer
 from django.contrib.auth import get_user_model
+from rest_framework import generics, status, views
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .serializers import UserRegisterSerializer, UserProfileSerializer
 
 User = get_user_model()
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -25,10 +28,21 @@ class LogoutView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response(
+                {'error': 'El campo "refresh" es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
-            refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"message": "Logout exitoso. Token invalidado."}, status=status.HTTP_205_RESET_CONTENT)
-        except Exception as e:
-            return Response({"error": "Token de refresco inválido o ya invalidado."}, status=status.HTTP_400_BAD_REQUEST)
+        except TokenError:
+            return Response(
+                {'error': 'Token de refresco inválido o ya invalidado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {'message': 'Logout exitoso. Token invalidado.'},
+            status=status.HTTP_205_RESET_CONTENT,
+        )

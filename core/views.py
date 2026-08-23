@@ -1,6 +1,5 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.conf import settings
 from .models import ProfessionalProfile, Project, Media, Contact
 from .serializers import (
     ProfessionalProfileSerializer,

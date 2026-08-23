@@ -1,7 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from .views import (
-    UserViewSet,
     ProfessionalProfileViewSet,
     ProjectViewSet,
     MediaViewSet,
@@ -10,7 +9,6 @@ from .views import (
 
 router = DefaultRouter()
 
-router.register(r'users', UserViewSet)
 router.register(r'profiles', ProfessionalProfileViewSet)
 router.register(r'projects', ProjectViewSet)
 router.register(r'media', MediaViewSet)
