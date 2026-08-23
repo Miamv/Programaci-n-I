@@ -1,44 +1,59 @@
-# Plataforma para exhibir proyectos profesionales
+# Plataforma para Exhibición de Proyectos de Diseño y Arquitectura
+ 
+Plataforma orientada a la exhibición, presentación y difusión de proyectos profesionales, con foco en arquitectura, diseño y disciplinas creativas relacionadas.
 
-**Descripción:**  
-Plataforma orientada a la publicación y visualización de proyectos profesionales mediante contenido multimedia y recorridos virtuales interactivos.
+Permite a profesionales, estudios y equipos de trabajo transformar un conjunto de trabajos en una presentación digital organizada, visual e interactiva, utilizable tanto como portfolio como herramienta de presentación comercial frente a clientes.
 
-El sistema está pensado principalmente para profesionales, empresas y estudios que necesiten presentar proyectos de manera más visual, moderna y comercial, facilitando la promoción de trabajos, servicios y desarrollos ante potenciales clientes.
-
-La plataforma está diseñada para adaptarse a distintos tipos de profesionales y proyectos, como arquitectura, diseño, fotografía, interiorismo y otros rubros creativos o técnicos.
-
-Su enfoque principal es ofrecer una herramienta profesional de exhibición visual y presentación comercial de proyectos, permitiendo compartir contenido mediante enlaces accesibles para clientes o interesados.
+Cada proyecto cuenta con su propia página, contenido multimedia propio y un enlace público de acceso directo, sin que el receptor necesite conocer previamente la plataforma.
 
 ---
 
-## Objetivo del proyecto:
+## Objetivo:
 
-El objetivo es permitir que profesionales o equipos de trabajo puedan:
- - Publicar y administrar proyectos profesionales 
- - Ofrecer recorridos virtuales interactivos
- - Mejorar la presentación visual y comercial de sus trabajos
- - Facilitar el contacto con potenciales clientes o interesados
+Desarrollar una plataforma que permita crear, administrar y presentar proyectos de manera visual e interactiva, facilitando tanto la exposición de trabajos como el contacto con potenciales clientes.
+
+Debe permitir:
+ - Crear y administrar un perfiles profesionales o estudios
+ - Gestionar uno o varios proyectos
+ - Presentar cada proyecto mediante contenido visual y multimedia
+ - Incorporar recorridos virtuales, y contenido interactivo
+ - Compartir proyectos mediante enlaces públicos
+ - Facilitar el contacto entre visitantes y profesionales
 
 ---
 
-## Características Principales
+## Modelo de operación
 
-- Registro y autenticación de usuarios
-- Administración de perfiles profesionales o estudios
-- Gestión de proyectos profesionales 
-- Asociación de imágenes, videos y contenido multimedia
-- Visualización de proyectos
-- Integración de recorridos virtuales o modelos interactivos
-- Contacto entre visitantes y perfiles profesionales
-  
+El proyecto funciona bajo un modelo de Gestión de Contenido: un operador (Usuario/Administrador) prepara y mantiene la presentación, mientras que el Estudio/Perfil es dueño de su identidad y de su negocio. Esta separación es la que ordena todos los roles y permisos del sistema.
+
+| Actor | Rol | Controla |
+|---|---|---|
+| **Administrador** | Cuenta autenticada que administra la plataforma y prepara el contenido para su publicación. | Estructura visual, calidad de presentación, orden de publicación, funcionamiento de recorridos y multimedia. |
+| **Propietario** | Usuario responsable de un perfil profesional o estudio y de la gestión de su información y actividad comercial. | Su propio negocio: información de contacto, servicios, consultas recibidas y estado comercial. |
+| **Colaborador** | Asiste al Administrador en proyectos grandes. | Edición de proyectos puntuales, carga de contenido, información permitida — según permiso asignado. |
+| **Visitante** | Accede sin cuenta al contenido público. | Nada — solo explora, recorre y consulta. |
+
+Un mismo Administrador puede administrar uno o varios perfiles de Propietario, según el alcance del servicio.
+
+---
+
+### Estados del proyecto
+
+Cada proyecto maneja **dos dimensiones de estado independientes**:
+
+- **Estado de publicación** (controlado por el Administrador): Borrador · En revisión · Publicado · Oculto · Archivado.
+- **Estado comercial** (controlado por el Propietario): Disponible · En negociación · Reservado · Vendido · No disponible.
+
+---
+
 ## Entidades 
 
 1. **Usuario**  
    - Representa a un miembro autorizado dentro de la plataforma.
-   - Los usuarios forman parte de un perfil profesional o estudio y poseen permisos para administrar contenido y proyectos.
+   - Los usuarios pueden estar asociados a uno o varios perfiles profesionales y poseen permisos según el rol asignado.
    - Funciones: Iniciar sesión, administrar perfiles profesionales, gestionar proyectos, cargar contenido multimedia, editar información pública, compartir proyectos con clientes o interesados.
 
-2. **Perfil Profesional/ Estudio**  
+2. **Perfil Profesional**  
    - Representa la identidad pública y comercial visible dentro de la plataforma.
    - Agrupa la información institucional o profesional y centraliza los proyectos publicados por un equipo de trabajo.
    - Contiene información como: Nombre profesional o comercial, descripción, especialidad o rubro, servicios ofrecidos, información de contacto, imagen institucional, proyectos asociados.
@@ -57,7 +72,7 @@ El objetivo es permitir que profesionales o equipos de trabajo puedan:
    - Cara recurso multimedia pertenece a un proyecto específico.
 
 5. **Contacto**  
-   - Representa las consultas o solicitudes realizadas por visitantes o potenciales clientes hacia un perfil profesional.
+   - Representa las consultas o solicitudes realizadas por visitantes hacia un perfil profesional.
    - Permite establecer comunicación comercial relacionada con proyectos publicados dentro de la plataforma.
    - Puede utilizarse para: realizar consultas, pedir información adicional, manifestar interés sobre un proyecto publicado.
 
@@ -65,13 +80,13 @@ El objetivo es permitir que profesionales o equipos de trabajo puedan:
 
 ## Relaciones principales
 
-| Relación | Tipo | Descripción |
-|----------|------|------------|
-| Perfil Profesional → posee → Usuarios | 1:N | Un perfil profesional puede tener múltiples usuarios colaboradores. |
-| Perfil Profesional → publica → Proyecto | 1:N | Cada perfil puede publicar múltiples proyectos. |
-| Proyecto → contiene → Media | 1:N | Cada proyecto puede contener múltiples recursos multimedia asociados. |
-| Proyecto → puede compartirse → Visitantes | 1:N | Los proyectos pueden visualizarse mediante enlaces compartidos. |
-| Visitante → contacta → Perfil Profesional| 1:N | Los visitantes pueden enviar consultas comerciales a perfiles profesionales. |
+| Relación | Tipo |
+|---|:---:|
+| Usuario → administra → Perfil Profesional | N:M |
+| Perfil Profesional → publica → Proyecto | 1:N |
+| Proyecto → contiene → Media | 1:N |
+| Visitante → visualiza → Proyecto | N:M |
+| Visitante → contacta → Perfil Profesional | N:M |
 
 ---
 
@@ -98,12 +113,27 @@ La asociación de usuarios a un perfil profesional se realiza desde el admin en
 
 ---
 
-## Notas
+## Funcionalidades principales
 
-- El sistema está orientado principalmente a la exhibición profesional y comercial de proyectos.
-- La plataforma no busca funcionar como una red social tradicional, sino como una herramienta de presentación visual y difusión profesional.
-- El modelo es adaptable a distintos rubros profesionales.
-- La estructura del sistema permite futuras ampliaciones como: Filtros avanzados, métricas de visualización, portfolios personalizados, integración con herramientas externas, o distintos niveles de permisos para colaboradores.
+- Gestión de usuarios (registro, autenticación, recuperación de acceso, permisos por rol).
+- Perfiles profesionales públicos y colaborativos.
+- Gestión de proyectos con página propia y enlace directo compartible.
+- Contenido multimedia: imágenes, renders, videos, planos, modelos 3D.
+- Recorridos virtuales y contenido interactivo (360°, visores 3D, presentaciones interactivas).
+- Sistema de contacto entre visitantes y profesionales.
+
+---
+
+## Alcance inicial
+
+1. Autenticación de usuarios.
+2. Creación y administración de perfiles profesionales.
+3. Gestión de proyectos.
+4. Carga y administración de imágenes y otros recursos multimedia.
+5. Visualización pública de perfiles y proyectos.
+6. Compartición mediante enlaces.
+7. Sistema básico de contacto.
+8. Roles y permisos para trabajo colaborativo.
 
 ---
 
@@ -144,11 +174,12 @@ python -m venv venv
 venv\Scripts\Activate.ps1
 
 4. Instalar dependencias:
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 ## Ejecución
 
 1. Aplicar migraciones:
+cd backend
 python manage.py migrate
 
 2. Crear superusuario:
