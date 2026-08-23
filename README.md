@@ -24,16 +24,19 @@ Debe permitir:
 
 ## Modelo de operación
 
-El proyecto funciona bajo un modelo de Gestión de Contenido: un operador (Usuario/Administrador) prepara y mantiene la presentación, mientras que el Estudio/Perfil es dueño de su identidad y de su negocio. Esta separación es la que ordena todos los roles y permisos del sistema.
+El proyecto funciona bajo un modelo de Gestión de Contenido: los usuarios con permisos de administración preparan y mantienen la presentación, mientras que el Estudio/Perfil es dueño de su identidad y de su negocio. Esta separación organiza los roles y permisos del sistema.
 
 | Actor | Rol | Controla |
 |---|---|---|
 | **Administrador** | Cuenta autenticada que administra la plataforma y prepara el contenido para su publicación. | Estructura visual, calidad de presentación, orden de publicación, funcionamiento de recorridos y multimedia. |
 | **Propietario** | Usuario responsable de un perfil profesional o estudio y de la gestión de su información y actividad comercial. | Su propio negocio: información de contacto, servicios, consultas recibidas y estado comercial. |
-| **Colaborador** | Asiste al Administrador en proyectos grandes. | Edición de proyectos puntuales, carga de contenido, información permitida — según permiso asignado. |
-| **Visitante** | Accede sin cuenta al contenido público. | Nada — solo explora, recorre y consulta. |
+| **Colaborador** | Usuario que asiste en la gestión de proyectos y contenido. | Edición de proyectos puntuales, carga de contenido e información permitida, según los permisos asignados. |
+| **Viewer** | Usuario registrado con permisos de solo lectura. | Puede acceder al contenido permitido, pero no administrar perfiles, proyectos ni contenido. |
+| **Visitante** | Persona no autenticada que accede al contenido público. | Puede explorar proyectos y perfiles públicos y realizar consultas de contacto. |
 
 Un mismo Administrador puede administrar uno o varios perfiles de Propietario, según el alcance del servicio.
+
+Los visitantes no necesitan registrarse para visualizar contenido público ni para realizar consultas. El rol **Viewer** corresponde exclusivamente a usuarios registrados y permite mantener un nivel de acceso de solo lectura.
 
 ---
 
@@ -97,7 +100,9 @@ Cada proyecto maneja **dos dimensiones de estado independientes**:
 | `ADMIN` | Acceso total: administra usuarios, perfiles, proyectos y contenido. |
 | `OWNER` | Crea y elimina proyectos; administra sus propios perfiles profesionales. |
 | `COLLABORATOR` | Edita proyectos y sube contenido multimedia de los perfiles a los que pertenece. |
-| `VIEWER` | Solo lectura. Rol por defecto al registrarse (no puede asignarse por el cliente). |
+| `VIEWER` | Solo lectura. Rol por defecto al registrarse; no puedemodificar ni administrar contenido |
+
+**Nota:** El visitante no constituye un rol dentro del sistema RBAC, ya que no necesita una cuenta. Puede acceder a los recursos públicos y realizar consultas de contacto sin autenticarse.
 
 ### Asignación de roles
 
@@ -142,7 +147,8 @@ La asociación de usuarios a un perfil profesional se realiza desde el admin en
 - Python
 - Django
 - Django REST Framework
-- SQLite 
+- PostgreSQL
+- React
 
 ## Requisitos Previos
 

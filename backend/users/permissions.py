@@ -76,3 +76,33 @@ class CanManageProfile(permissions.BasePermission):
         if request.user.role == User.RoleChoices.ADMIN:
             return True
         return obj.users.filter(id=request.user.id).exists()
+
+class CanManageContact(permissions.BasePermission):
+    """
+    ADMIN puede gestionar cualquier contacto.
+    OWNER puede gestionar los contactos de sus propios perfiles.
+    Cualquier usuario puede crear un contacto.
+    """
+
+    def has_permission(self, request, view):
+        # Cualquier visitante puede enviar una consulta.
+        if view.action == 'create':
+            return True
+
+        # Para consultar, modificar o eliminar contactos se requiere autenticación.
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Solo ADMIN y OWNER gestionan consultas.
+        return request.user.role in [
+            User.RoleChoices.ADMIN,
+            User.RoleChoices.OWNER,
+        ]
+
+    def has_object_permission(self, request, view, obj):
+        # ADMIN tiene acceso total.
+        if request.user.role == User.RoleChoices.ADMIN:
+            return True
+
+        # OWNER solo accede a contactos de sus propios perfiles.
+        return obj.profile.users.filter(id=request.user.id).exists()
