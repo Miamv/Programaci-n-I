@@ -15,3 +15,6 @@ projects/
 
 frontend/node_modules/
 frontend/dist/
+
+# VS Code workspace
+*.code-workspace
