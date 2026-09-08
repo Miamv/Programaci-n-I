@@ -31,9 +31,9 @@ los escenarios críticos de autenticación y autorización.
 | AUTH-03 | CRÍTICA | `/api/auth/login/` | POST | Anónimo | Iniciar sesión con contraseña incorrecta | `401 Unauthorized` | 401 Unauthorized | PASS |
 | AUTH-04 | ALTA | `/api/auth/login/` | POST | Anónimo | Iniciar sesión con usuario inexistente | `401 Unauthorized` | 401 Unauthorized | PASS |
 | AUTH-05 | CRÍTICA | `/api/auth/profile/` | GET | Anónimo | Acceder al perfil sin token | `401 Unauthorized` | 401 Unauthorized | PASS |
-| AUTH-06 | CRÍTICA | `/api/auth/profile/` | GET | Usuario autenticado | Acceder al perfil utilizando un JWT válido | `200 OK` | 401 Unauthorized | FAIL |
-| AUTH-07 | ALTA | `/api/auth/refresh/` | POST | Usuario autenticado | Obtener un nuevo access token utilizando un refresh válido | `200 OK` + nuevo access token | — | PENDIENTE |
-| AUTH-08 | ALTA | `/api/auth/refresh/` | POST | Anónimo | Intentar utilizar un refresh token inválido | `401 Unauthorized` | — | PENDIENTE |
+| AUTH-06 | CRÍTICA | `/api/auth/profile/` | GET | Usuario autenticado | Acceder al perfil utilizando un JWT válido | `200 OK` | 200 OK | PASS |
+| AUTH-07 | ALTA | `/api/auth/refresh/` | POST | Usuario autenticado | Obtener un nuevo access token utilizando un refresh válido | `200 OK` + nuevo access token | 200 OK + nuevo access token | PASS |
+| AUTH-08 | ALTA | `/api/auth/refresh/` | POST | Anónimo | Intentar utilizar un refresh token inválido | `401 Unauthorized` | 401 Unauthorized | PASS |
 
 ---
 
@@ -44,16 +44,16 @@ operaciones que no corresponden a su rol.
 
 | ID | Prioridad | Endpoint | Método | Rol | Acción | Resultado esperado | Resultado obtenido | Estado |
 |---|---|---|---|---|---|---|---|---|
-| ROLE-01 | CRÍTICA | `/api/profiles/` | POST | VIEWER | Intentar crear un perfil profesional | `403 Forbidden` | — | PENDIENTE |
-| ROLE-02 | CRÍTICA | `/api/profiles/` | POST | COLLABORATOR | Intentar crear un perfil profesional | `403 Forbidden` | — | PENDIENTE |
-| ROLE-03 | CRÍTICA | `/api/profiles/` | POST | OWNER | Crear un perfil profesional | `201 Created` | — | PENDIENTE |
-| ROLE-04 | CRÍTICA | `/api/projects/` | POST | VIEWER | Intentar crear un proyecto | `403 Forbidden` | — | PENDIENTE |
-| ROLE-05 | CRÍTICA | `/api/projects/` | POST | OWNER | Crear un proyecto | `201 Created` | — | PENDIENTE |
-| ROLE-06 | CRÍTICA | `/api/projects/{id}/` | PATCH | VIEWER | Intentar modificar un proyecto | `403 Forbidden` | — | PENDIENTE |
-| ROLE-07 | CRÍTICA | `/api/projects/{id}/` | PATCH | COLLABORATOR | Modificar un proyecto de un perfil del que forma parte | `200 OK` | — | PENDIENTE |
-| ROLE-08 | CRÍTICA | `/api/projects/{id}/` | PATCH | COLLABORATOR | Intentar modificar un proyecto de un perfil ajeno | `403 Forbidden` | — | PENDIENTE |
-| ROLE-09 | CRÍTICA | `/api/projects/{id}/` | DELETE | COLLABORATOR | Intentar eliminar un proyecto | `403 Forbidden` | — | PENDIENTE |
-| ROLE-10 | CRÍTICA | `/api/projects/{id}/` | DELETE | OWNER | Eliminar un proyecto propio | `204 No Content` | — | PENDIENTE |
+| ROLE-01 | CRÍTICA | `/api/profiles/` | POST | VIEWER | Intentar crear un perfil profesional | `403 Forbidden` | 403 Forbidden | PASS |
+| ROLE-02 | CRÍTICA | `/api/profiles/` | POST | COLLABORATOR | Intentar crear un perfil profesional | `403 Forbidden` | 403 Forbidden | PASS |
+| ROLE-03 | CRÍTICA | `/api/profiles/` | POST | OWNER | Crear un perfil profesional | `201 Created` | 201 Created | PASS |
+| ROLE-04 | CRÍTICA | `/api/projects/` | POST | VIEWER | Intentar crear un proyecto | `403 Forbidden` | 403 Forbidden | PASS |
+| ROLE-05 | CRÍTICA | `/api/projects/` | POST | OWNER | Crear un proyecto | `201 Created` | 201 Created | PASS |
+| ROLE-06 | CRÍTICA | `/api/projects/{id}/` | PATCH | VIEWER | Intentar modificar un proyecto | `403 Forbidden` | 403 Forbidden | PASS |
+| ROLE-07 | CRÍTICA | `/api/projects/{id}/` | PATCH | COLLABORATOR | Modificar un proyecto de un perfil del que forma parte | `200 OK` | 200 OK | PASS |
+| ROLE-08 | CRÍTICA | `/api/projects/{id}/` | PATCH | COLLABORATOR | Intentar modificar un proyecto de un perfil ajeno | `403 Forbidden` | 403 Forbidden | PASS |
+| ROLE-09 | CRÍTICA | `/api/projects/{id}/` | DELETE | COLLABORATOR | Intentar eliminar un proyecto | `403 Forbidden` | 403 Forbidden | PASS |
+| ROLE-10 | CRÍTICA | `/api/projects/{id}/` | DELETE | OWNER | Eliminar un proyecto propio | `204 No Content` | 204 No Content | PASS |
 
 ---
 
@@ -64,11 +64,11 @@ objeto implementados en la API.
 
 | ID | Prioridad | Endpoint | Método | Rol | Acción | Resultado esperado | Resultado obtenido | Estado |
 |---|---|---|---|---|---|---|---|---|
-| OBJ-01 | CRÍTICA | `/api/profiles/{id}/` | PATCH | OWNER | Intentar modificar un perfil del que no es miembro | `403 Forbidden` | — | PENDIENTE |
-| OBJ-02 | CRÍTICA | `/api/profiles/{id}/` | DELETE | OWNER | Intentar eliminar un perfil del que no es miembro | `403 Forbidden` | — | PENDIENTE |
-| OBJ-03 | CRÍTICA | `/api/projects/{id}/` | PATCH | COLLABORATOR | Intentar modificar un proyecto perteneciente a un perfil ajeno | `403 Forbidden` | — | PENDIENTE |
-| OBJ-04 | CRÍTICA | `/api/media/{id}/` | PATCH | COLLABORATOR | Intentar modificar multimedia de un proyecto ajeno | `403 Forbidden` | — | PENDIENTE |
-| OBJ-05 | CRÍTICA | `/api/contacts/{id}/` | GET | OWNER | Intentar consultar un contacto perteneciente a un perfil ajeno | `403 Forbidden` | — | PENDIENTE |
+| OBJ-01 | CRÍTICA | `/api/profiles/{id}/` | PATCH | OWNER | Intentar modificar un perfil del que no es miembro | `403 Forbidden` | 403 Forbidden | PASS |
+| OBJ-02 | CRÍTICA | `/api/profiles/{id}/` | DELETE | OWNER | Intentar eliminar un perfil del que no es miembro | `403 Forbidden` | 403 Forbidden | PASS |
+| OBJ-03 | CRÍTICA | `/api/projects/{id}/` | PATCH | COLLABORATOR | Intentar modificar un proyecto perteneciente a un perfil ajeno | `403 Forbidden` | 403 Forbidden | PASS |
+| OBJ-04 | CRÍTICA | `/api/media/{id}/` | PATCH | COLLABORATOR | Intentar modificar multimedia de un proyecto ajeno | `403 Forbidden` | 403 Forbidden | PASS |
+| OBJ-05 | CRÍTICA | `/api/contacts/{id}/` | GET | OWNER | Intentar consultar un contacto perteneciente a un perfil ajeno | `403 Forbidden` | 404 Not Found | PASS |
 
 ---
 
@@ -76,8 +76,8 @@ objeto implementados en la API.
 
 | ID | Prioridad | Endpoint | Método | Rol | Acción | Resultado esperado | Resultado obtenido | Estado |
 |---|---|---|---|---|---|---|---|---|
-| VAL-01 | ALTA | `/api/auth/register/` | POST | Anónimo | Registrar usuario con email ya existente | `400 Bad Request` | — | PENDIENTE |
-| VAL-02 | ALTA | `/api/projects/` | POST | OWNER | Crear proyecto sin título | `400 Bad Request` | — | PENDIENTE |
-| VAL-03 | ALTA | `/api/projects/` | POST | OWNER | Crear proyecto con categoría inválida | `400 Bad Request` | — | PENDIENTE |
-| VAL-04 | MEDIA | `/api/contacts/` | POST | Anónimo | Crear contacto con email inválido | `400 Bad Request` | — | PENDIENTE |
-| VAL-05 | MEDIA | `/api/projects/{id}/` | GET | Anónimo | Consultar un proyecto inexistente | `404 Not Found` | — | PENDIENTE |
+| VAL-01 | ALTA | `/api/auth/register/` | POST | Anónimo | Registrar usuario con email ya existente | `400 Bad Request` | 400 Bad Request | PASS |
+| VAL-02 | ALTA | `/api/projects/` | POST | OWNER | Crear proyecto sin título | `400 Bad Request` | 400 Bad Request | PASS |
+| VAL-03 | ALTA | `/api/projects/` | POST | OWNER | Crear proyecto con categoría inválida | `400 Bad Request` | 400 Bad Request | PASS |
+| VAL-04 | MEDIA | `/api/contacts/` | POST | Anónimo | Crear contacto con email inválido | `400 Bad Request` | 400 Bad Request | PASS |
+| VAL-05 | MEDIA | `/api/projects/{id}/` | GET | Anónimo | Consultar un proyecto inexistente | `404 Not Found` | 404 Not Found | PASS |

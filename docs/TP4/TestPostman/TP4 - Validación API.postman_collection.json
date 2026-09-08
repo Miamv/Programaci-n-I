@@ -1,0 +1,324 @@
+{
+  "info": {
+    "_postman_id": "b44352d0-e8d4-40ee-8565-99f330196bd1",
+    "name": "TP4 - Validación API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53657563",
+    "_collection_link": "https://go.postman.co/collection/53657563-b44352d0-e8d4-40ee-8565-99f330196bd1?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "01 - Autenticación",
+      "item": [
+        {
+          "name": "AUTH-01 - Registro exitoso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profiles/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-02 - Login exitoso",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-03 - Login con contraseña incorrecta",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-04 - Login usuario inexistente",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-05 - Perfil sin token",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-06 - Perfil con token válido",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-07 - Refresh token válido",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-08 - Refresh token inválido",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"refresh\":\"asdhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc4ODM5MTA2NSwiaWF0IjoxNzg4MzA0NjY1LCJqdGkiOiI5YjJjZTY0ZmQzOWE0NTUyODMyYjNkZDU4NThiask0NyIsInVzZXJfaWQiOiI0In0.EzrYYssKhiXekMiO0Ho7VE3XCEbOk0WjGNB8uajuhPg\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Roles y permisos",
+      "item": [
+        {
+          "name": "ROLE-01 - VIEWER crea perfil",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-02 - COLLABORATOR crea perfil",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-03 - OWNER crea perfil",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-04 - VIEWER crea proyecto",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-05 - OWNER crea proyecto",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-06 - VIEWER modifica proyecto",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-07 - COLLABORATOR modifica proyecto propio",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-08 - COLLABORATOR modifica proyecto ajeno",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-09 - COLLABORATOR elimina proyecto",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "ROLE-10 - OWNER elimina proyecto",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Validaciones",
+      "item": [
+        {
+          "name": "VAL-01 - Email duplicado",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-02 - Proyecto sin título",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-03 - Categoría inválida",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-04 - Email inválido en contacto",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-05 - Recurso inexistente",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Objetos Ajenos",
+      "item": [
+        {
+          "name": "OBJ-01 - OWNER modifica perfil ajeno",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "OBJ-02 - OWNER elimina perfil ajeno",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "OBJ-03 - COLLABORATOR modifica proyecto ajeno",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "OBJ-04 - COLLABORATOR modifica multimedia ajena",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "OBJ-05 - OWNER consulta contacto ajeno",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Casos borde",
+      "item": []
+    },
+    {
+      "name": "06 - Flujos completos",
+      "item": []
+    },
+    {
+      "name": "00 - Preparación",
+      "item": [
+        {
+          "name": "LOGIN-VIEWER",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "LOGIN-COLLABORATOR",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "LOGIN-OWNER",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
