@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, ProfessionalProfile, Project, Media, Contact
+from .models import User, Brand, ProfessionalProfile, Project, Media, Contact
 
 
 @admin.register(User)
@@ -16,6 +16,12 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+
 @admin.register(ProfessionalProfile)
 class ProfessionalProfileAdmin(admin.ModelAdmin):
     list_display = ('name', 'specialty', 'contact_email', 'created_at')
@@ -29,12 +35,13 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'profile', 'category', 'created_at')
     list_filter = ('category', 'created_at')
     search_fields = ('title',)
+    filter_horizontal = ('brands',)
 
 
 @admin.register(Media)
 class MediaAdmin(admin.ModelAdmin):
-    list_display = ('project', 'media_type')
-    list_filter = ('media_type',)
+    list_display = ('project', 'media_type', 'zone')
+    list_filter = ('media_type', 'zone')
 
 
 @admin.register(Contact)

@@ -106,3 +106,20 @@ class CanManageContact(permissions.BasePermission):
 
         # OWNER solo accede a contactos de sus propios perfiles.
         return obj.profile.users.filter(id=request.user.id).exists()
+
+
+class CanManageBrand(permissions.BasePermission):
+    """
+    ADMIN y OWNER pueden gestionar marcas.
+    Cualquiera puede listar/consultar.
+    """
+
+    def has_permission(self, request, view):
+        if view.action in ['list', 'retrieve']:
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [
+            User.RoleChoices.ADMIN,
+            User.RoleChoices.OWNER,
+        ]
