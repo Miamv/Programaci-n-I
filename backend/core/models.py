@@ -3,6 +3,14 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+class Brand(models.Model):
+    name = models.CharField(max_length=100)
+    logo = models.ImageField(upload_to='brands/', blank=True)
+
+    def __str__(self):
+        return self.name
+
+
 class User(AbstractUser):
     class RoleChoices(models.TextChoices):
         ADMIN = 'ADMIN', 'Administrador'
@@ -28,6 +36,7 @@ class ProfessionalProfile(models.Model):
     specialty = models.CharField(max_length=100, blank=True)
     services = models.TextField(blank=True)
     contact_email = models.EmailField(blank=True)
+    avatar = models.ImageField(upload_to='team/', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -52,6 +61,7 @@ class Project(models.Model):
     title = models.CharField(max_length=150)
     description = models.TextField()
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    brands = models.ManyToManyField(Brand, blank=True, related_name='projects')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -72,6 +82,11 @@ class Media(models.Model):
         ('interactive', 'Interactive Content'),
     ]
 
+    ZONE_CHOICES = [
+        ('interior', 'Interior'),
+        ('exterior', 'Exterior'),
+    ]
+
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
@@ -79,6 +94,7 @@ class Media(models.Model):
     )
     file = models.FileField(upload_to='projects/%Y/%m/')
     media_type = models.CharField(max_length=20, choices=MEDIA_TYPES)
+    zone = models.CharField(max_length=10, choices=ZONE_CHOICES, blank=True)
 
     def __str__(self):
         return f'{self.media_type} - {self.project.title}'

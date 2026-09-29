@@ -1,13 +1,24 @@
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
-from .models import ProfessionalProfile, Project, Media, Contact
+from .models import Brand, ProfessionalProfile, Project, Media, Contact
 from .serializers import (
+    BrandSerializer,
     ProfessionalProfileSerializer,
     ProjectSerializer,
     MediaSerializer,
     ContactSerializer,
 )
-from users.permissions import CanManageProject, CanUploadMedia, CanManageProfile, CanManageContact
+from users.permissions import CanManageProject, CanUploadMedia, CanManageProfile, CanManageContact, CanManageBrand
+
+
+class BrandViewSet(viewsets.ModelViewSet):
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [CanManageBrand()]
 
 class ProfessionalProfileViewSet(viewsets.ModelViewSet):
     queryset = ProfessionalProfile.objects.all()
