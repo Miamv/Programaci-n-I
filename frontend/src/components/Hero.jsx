@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import studio from '../config/studio';
 
 function VerticeMark() {
@@ -31,9 +30,9 @@ export default function Hero() {
           </div>
         </div>
 
-        <Link to="/#proyectos" className="vertice-hero__cta">
+        <a href="#proyectos" className="vertice-hero__cta">
           Explorar proyectos
-        </Link>
+        </a>
       </div>
     </section>
   );

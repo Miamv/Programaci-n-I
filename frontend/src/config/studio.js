@@ -1,8 +1,10 @@
+import heroBundled from '../assets/hero.png';
+
 const studio = {
   name: 'Vértice',
   tagline: 'Estudio de Diseño Industrial',
   logo: '/favicon.svg',
-  heroImage: '/assets/hero.png',
+  heroImage: heroBundled,
   contact: {
     // Datos personales del estudio: se leen de variables de entorno
     // (frontend/.env, nunca commiteado). Los valores aquí son solo
