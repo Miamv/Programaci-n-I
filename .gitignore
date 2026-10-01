@@ -3,6 +3,11 @@ __pycache__/
 *.pyc
 db.sqlite3
 .env
+.env.local
+.env.*.local
+!.env.example
+!frontend/.env.example
+!backend/.env.example
 .opencode/*.db*
 .opencode/
 projects/
