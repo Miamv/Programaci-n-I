@@ -4,7 +4,6 @@ import Home from './views/Home';
 import ProjectDetail from './views/ProjectDetail';
 import Login from './views/Login';
 import Register from './views/Register';
-import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -13,9 +12,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route element={<ProtectedRoute />}>
-              <Route index element={<Home />} />
-            </Route>
+            {/* Portfolio público. Home sin protección. ProtectedRoute disponible para futuras rutas privadas. */}
+            <Route index element={<Home />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="registro" element={<Register />} />
