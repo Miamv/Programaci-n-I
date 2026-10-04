@@ -82,11 +82,14 @@ export default function Login() {
             <div className="alert alert-danger mt-3">{errorMessage || 'Credenciales incorrectas.'}</div>
           )}
 
-          <p className="text-center mt-4">
+          <p className="text-center mt-4 mb-1">
             ¿No tenés cuenta?{' '}
             <Link to="/registro" style={{ color: 'var(--color-accent)' }}>
-              Registrate
+              Registrate como Viewer
             </Link>
+          </p>
+          <p className="text-center text-muted" style={{ fontSize: '0.78rem' }}>
+            Las nuevas cuentas acceden con rol Viewer (solo lectura).
           </p>
         </div>
       </div>

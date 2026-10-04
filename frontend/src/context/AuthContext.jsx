@@ -8,6 +8,7 @@ const INITIAL_USERS = [
     username: 'admin',
     email: 'admin@vertice.com',
     password: 'password123',
+    role: 'admin',
   },
 ];
 
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
     const authUserData = {
       username: foundUser.username,
       email: foundUser.email,
+      role: foundUser.role ?? 'admin',
     };
 
     setUser(authUserData);
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
       username: username.trim(),
       email: email.trim(),
       password,
+      role: 'viewer',
     };
 
     setUsers((prevUsers) => [...prevUsers, newUser]);

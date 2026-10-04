@@ -33,9 +33,12 @@ export default function Register() {
     <div className="container py-5">
       <div className="row justify-content-center">
         <div className="col-md-6 col-lg-4">
-          <h2 className="text-center fw-bold mb-4" style={{ fontFamily: 'var(--font-heading)' }}>
+          <h2 className="text-center fw-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
             Crear Cuenta
           </h2>
+          <p className="text-center text-muted mb-4" style={{ fontSize: '0.8rem' }}>
+            Las cuentas nuevas se crean con rol <strong>Viewer</strong> (solo lectura). La administración se asigna internamente.
+          </p>
 
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
@@ -84,7 +87,7 @@ export default function Register() {
 
           {status === 'success' && (
             <div className="alert alert-success mt-3">
-              Cuenta creada.{' '}
+              Cuenta creada con éxito.{' '}
               <Link to="/login" style={{ color: 'var(--color-accent)' }}>
                 Iniciá sesión
               </Link>
