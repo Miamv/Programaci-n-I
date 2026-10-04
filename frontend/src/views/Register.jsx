@@ -1,24 +1,31 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { register } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [status, setStatus] = useState('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const { register } = useAuth();
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     setStatus('loading');
+    setErrorMessage('');
 
-    try {
-      await register(form);
+    const result = register(form);
+
+    if (result.success) {
       setStatus('success');
-    } catch {
+      setForm({ username: '', email: '', password: '' });
+    } else {
       setStatus('error');
+      setErrorMessage(result.error || 'Error al crear cuenta. Intentá de nuevo.');
     }
   }
 
@@ -84,7 +91,9 @@ export default function Register() {
             </div>
           )}
           {status === 'error' && (
-            <div className="alert alert-danger mt-3">Error al crear cuenta. Intentá de nuevo.</div>
+            <div className="alert alert-danger mt-3">
+              {errorMessage || 'Error al crear cuenta. Intentá de nuevo.'}
+            </div>
           )}
 
           <p className="text-center mt-4">
