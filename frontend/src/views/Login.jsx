@@ -1,26 +1,41 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { login } from '../services/api';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [status, setStatus] = useState('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname || '/';
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
-    setStatus('loading');
-
-    try {
-      const response = await login(form);
-      localStorage.setItem('access_token', response.data.access);
-      localStorage.setItem('refresh_token', response.data.refresh);
-      setStatus('success');
-    } catch {
+    if (!form.username.trim() || !form.password) {
       setStatus('error');
+      setErrorMessage('Ingresá tu usuario y contraseña.');
+      return;
+    }
+    setStatus('loading');
+    setErrorMessage('');
+
+    const result = login({ username: form.username.trim(), password: form.password });
+
+    if (result.success) {
+      setStatus('success');
+      navigate(from, { replace: true });
+    } else {
+      setStatus('error');
+      setErrorMessage(result.error || 'Credenciales incorrectas.');
     }
   }
 
@@ -70,14 +85,17 @@ export default function Login() {
             <div className="alert alert-success mt-3">Sesión iniciada correctamente.</div>
           )}
           {status === 'error' && (
-            <div className="alert alert-danger mt-3">Credenciales incorrectas.</div>
+            <div className="alert alert-danger mt-3">{errorMessage || 'Credenciales incorrectas.'}</div>
           )}
 
-          <p className="text-center mt-4">
+          <p className="text-center mt-4 mb-1">
             ¿No tenés cuenta?{' '}
             <Link to="/registro" style={{ color: 'var(--color-accent)' }}>
-              Registrate
+              Registrate como Viewer
             </Link>
+          </p>
+          <p className="text-center text-muted" style={{ fontSize: '0.78rem' }}>
+            Las nuevas cuentas acceden con rol Viewer (solo lectura).
           </p>
         </div>
       </div>

@@ -95,6 +95,93 @@ a {
   opacity: 0.72;
 }
 
+/* Mini panel de cuenta del estudio (despliega desde el círculo de usuario) */
+.vertice-userbox {
+  position: relative;
+}
+
+.vertice-userbox__btn {
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity var(--transition), border-color var(--transition), transform var(--transition);
+}
+
+.vertice-userbox__btn:hover {
+  opacity: 1;
+  border-color: rgba(15, 27, 42, 0.45);
+  transform: translateY(-1px);
+}
+
+.vertice-userbox__menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 230px;
+  background: #fffdf9;
+  border: 1px solid rgba(15, 27, 42, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(15, 27, 42, 0.18);
+  padding: 0.5rem;
+  z-index: 1100;
+}
+
+.vertice-userbox__meta {
+  padding: 0.55rem 0.7rem 0.35rem;
+}
+
+.vertice-userbox__name {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--color-ink);
+}
+
+.vertice-userbox__mail {
+  font-size: 0.72rem;
+  color: var(--color-ink);
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vertice-userbox__divider {
+  border-top: 1px solid rgba(15, 27, 42, 0.1);
+  margin: 0.45rem 0.2rem;
+}
+
+.vertice-userbox__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+}
+
+.vertice-userbox__item:hover {
+  background: rgba(15, 27, 42, 0.06);
+}
+
+.vertice-userbox__hint {
+  font-size: 0.68rem;
+  color: var(--color-ink);
+  opacity: 0.6;
+  padding: 0.15rem 0.7rem 0.5rem;
+}
+
+.vertice-userbox__logout {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .vertice-navbar__toggler {
   border: 0;
 }

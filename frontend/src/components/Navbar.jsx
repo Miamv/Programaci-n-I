@@ -1,15 +1,60 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import useScrollTo from '../hooks/useScrollTo';
 import studio from '../config/studio';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const scrollTo = useScrollTo();
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const location = useLocation();
+
+  const roleLabel = user?.role ?? '';
+
+  // Cierra el menú al cambiar de usuario o de ruta (actualización en fase de
+  // render, sin efectos en cascada).
+  const [prevMenuKey, setPrevMenuKey] = useState({
+    path: location.pathname,
+    user,
+  });
+  if (prevMenuKey.path !== location.pathname || prevMenuKey.user !== user) {
+    setPrevMenuKey({ path: location.pathname, user });
+    setMenuOpen(false);
+  }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [menuOpen]);
 
   function handleAnchorClick(e, href) {
     if (href.startsWith('/#')) {
       e.preventDefault();
       scrollTo(href.slice(2));
     }
+  }
+
+  function handleLogout() {
+    logout();
+    setMenuOpen(false);
   }
 
   return (
@@ -54,14 +99,89 @@ export default function Navbar() {
                   )}
                 </li>
               ))}
-              <li className="nav-item d-flex align-items-center ms-lg-2">
-                <span className="vertice-navbar__user" aria-label="Acceso personal (próximamente)" title="Acceso personal — próximamente">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
-                    <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                </span>
-              </li>
+
+              {user ? (
+                <>
+                  <li
+                    className="nav-item d-flex align-items-center ms-lg-3 my-2 my-lg-0 vertice-userbox"
+                    ref={menuRef}
+                  >
+                    <button
+                      type="button"
+                      className="vertice-navbar__user vertice-userbox__btn"
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      aria-label="Cuenta de usuario"
+                      title="Cuenta de usuario"
+                      onClick={() => setMenuOpen((v) => !v)}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
+                        <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    <span className="nav-link px-0 ms-2 text-capitalize fw-semibold">
+                      {roleLabel}
+                    </span>
+                    {menuOpen && (
+                      <div className="vertice-userbox__menu" role="menu">
+                        <div className="vertice-userbox__meta">
+                          <div className="vertice-userbox__name text-capitalize">{user.username}</div>
+                          {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                  <li className="nav-item ms-lg-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-dark btn-sm rounded-pill px-3 vertice-userbox__logout"
+                      onClick={handleLogout}
+                    >
+                      Cerrar sesión
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <li className="nav-item ms-lg-2 vertice-userbox" ref={menuRef}>
+                  <button
+                    type="button"
+                    className="vertice-navbar__user vertice-userbox__btn"
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    aria-label="Acceso a la plataforma"
+                    title="Acceso a la plataforma"
+                    onClick={() => setMenuOpen((v) => !v)}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  {menuOpen && (
+                    <div className="vertice-userbox__menu" role="menu">
+                      <Link
+                        className="vertice-userbox__item"
+                        role="menuitem"
+                        to="/login"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Iniciar sesión
+                      </Link>
+                      <Link
+                        className="vertice-userbox__item"
+                        role="menuitem"
+                        to="/registro"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Crear cuenta
+                      </Link>
+                      <div className="vertice-userbox__divider" aria-hidden="true" />
+                      <div className="vertice-userbox__hint">Nuevas cuentas acceden como Viewer</div>
+                    </div>
+                  )}
+                </li>
+              )}
             </ul>
           </div>
         </div>
