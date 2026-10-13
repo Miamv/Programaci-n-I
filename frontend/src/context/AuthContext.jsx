@@ -1,11 +1,10 @@
 /* eslint-disable react-refresh/only-export-components -- contexto + hook coubicados a propósito (mock TP7 en memoria); se separará si el módulo crece en TP8 */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { login as loginApi, getProfile } from '../services/api';
 
 export const AuthContext = createContext(null);
 
-// TODO(TP8): eliminar usuarios mock y password en texto plano del bundle.
-// Autenticar contra el backend con hash en servidor + JWT en cookie httpOnly.
-// No commitear credenciales reales en el frontend.
+// Mocks mantenidos temporalmente para registro hasta su migración en el próximo objetivo
 const INITIAL_USERS = [
   {
     username: 'admin',
@@ -19,39 +18,118 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('auth_user');
+    if (saved && localStorage.getItem('access_token')) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [users, setUsers] = useState(INITIAL_USERS);
 
   const isAuthenticated = Boolean(user);
 
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    getProfile()
+      .then((res) => {
+        const profile = res.data;
+        const verifiedUser = {
+          id: profile.id,
+          username: profile.username,
+          email: profile.email,
+          role: profile.role?.toLowerCase() || 'viewer',
+        };
+        setUser(verifiedUser);
+        localStorage.setItem('auth_user', JSON.stringify(verifiedUser));
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('auth_user');
+          setUser(null);
+        }
+      });
+  }, []);
+
   const login = useCallback(
-    ({ username, password }) => {
+    async ({ username, password }) => {
       const cleanUsername = username?.trim() ?? '';
       if (!cleanUsername || !password) {
-        return { success: false, error: 'Credenciales incompletas' };
+        return { success: false, error: 'Ingresá tu usuario y contraseña.' };
       }
 
-      const foundUser = users.find(
-        (u) =>
-          u.username.toLowerCase() === cleanUsername.toLowerCase() &&
-          u.password === password
-      );
+      try {
+        const response = await loginApi({ username: cleanUsername, password });
+        const { access, refresh } = response.data;
 
-      if (!foundUser) {
-        return { success: false, error: 'Credenciales incorrectas' };
+        localStorage.setItem('access_token', access);
+        if (refresh) {
+          localStorage.setItem('refresh_token', refresh);
+        }
+
+        let authUserData = {
+          username: cleanUsername,
+          role: 'viewer',
+        };
+
+        try {
+          const profileRes = await getProfile();
+          const profile = profileRes.data;
+          authUserData = {
+            id: profile.id,
+            username: profile.username,
+            email: profile.email,
+            role: profile.role?.toLowerCase() || 'viewer',
+          };
+        } catch {
+          // Si el perfil falla temporalmente, se conservan datos mínimos del usuario
+        }
+
+        localStorage.setItem('auth_user', JSON.stringify(authUserData));
+        setUser(authUserData);
+
+        return { success: true, user: authUserData };
+      } catch (err) {
+        if (!err.response) {
+          return {
+            success: false,
+            error: 'No se pudo conectar con el servidor. Revisá tu conexión.',
+          };
+        }
+
+        if (err.response.status === 401) {
+          return {
+            success: false,
+            error: 'Usuario o contraseña incorrectos.',
+          };
+        }
+
+        if (err.response.status === 400) {
+          const detail =
+            err.response.data?.non_field_errors?.[0] ||
+            err.response.data?.detail ||
+            'Por favor, verificá los datos ingresados.';
+          return {
+            success: false,
+            error: detail,
+          };
+        }
+
+        return {
+          success: false,
+          error: 'Error en el servidor al intentar iniciar sesión. Intentá más tarde.',
+        };
       }
-
-      const authUserData = {
-        username: foundUser.username,
-        email: foundUser.email,
-        // Nunca escalar privilegios por defecto: dato legacy/corrupto sin rol => viewer.
-        role: foundUser.role ?? 'viewer',
-      };
-
-      setUser(authUserData);
-      return { success: true, user: authUserData };
     },
-    [users]
+    []
   );
 
   const register = useCallback(
@@ -101,6 +179,9 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('auth_user');
     setUser(null);
   }, []);
 

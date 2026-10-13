@@ -47,4 +47,8 @@ export function register(data) {
   return api.post('/auth/register/', data);
 }
 
+export function getProfile() {
+  return api.get('/auth/profile/');
+}
+
 export default api;
