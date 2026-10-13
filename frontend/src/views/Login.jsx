@@ -14,15 +14,21 @@ export default function Login() {
   const from = location.state?.from?.pathname || '/';
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (!form.username.trim() || !form.password) {
+      setStatus('error');
+      setErrorMessage('Ingresá tu usuario y contraseña.');
+      return;
+    }
     setStatus('loading');
     setErrorMessage('');
 
-    const result = login(form);
+    const result = login({ username: form.username.trim(), password: form.password });
 
     if (result.success) {
       setStatus('success');

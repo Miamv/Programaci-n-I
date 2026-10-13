@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
@@ -8,9 +8,18 @@ export default function Register() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const { register } = useAuth();
+  const navigate = useNavigate();
+  const redirectTimer = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    };
+  }, []);
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function handleSubmit(e) {
@@ -23,6 +32,8 @@ export default function Register() {
     if (result.success) {
       setStatus('success');
       setForm({ username: '', email: '', password: '' });
+      // Muestra el mensaje de éxito y luego lleva al login (decisión UX acordada).
+      redirectTimer.current = setTimeout(() => navigate('/login', { replace: true }), 1500);
     } else {
       setStatus('error');
       setErrorMessage(result.error || 'Error al crear cuenta. Intentá de nuevo.');
@@ -79,7 +90,7 @@ export default function Register() {
               type="submit"
               className="btn text-white w-100 rounded-pill"
               style={{ backgroundColor: 'var(--color-primary)' }}
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || status === 'success'}
             >
               {status === 'loading' ? 'Creando...' : 'Crear cuenta'}
             </button>

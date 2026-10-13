@@ -176,6 +176,12 @@ a {
   padding: 0.15rem 0.7rem 0.5rem;
 }
 
+.vertice-userbox__logout {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .vertice-navbar__toggler {
   border: 0;
 }

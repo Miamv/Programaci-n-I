@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import useScrollTo from '../hooks/useScrollTo';
 import studio from '../config/studio';
 import { useAuth } from '../context/AuthContext';
@@ -9,8 +9,20 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const location = useLocation();
 
-  const roleLabel = user?.role ?? user?.username;
+  const roleLabel = user?.role ?? '';
+
+  // Cierra el menú al cambiar de usuario o de ruta (actualización en fase de
+  // render, sin efectos en cascada).
+  const [prevMenuKey, setPrevMenuKey] = useState({
+    path: location.pathname,
+    user,
+  });
+  if (prevMenuKey.path !== location.pathname || prevMenuKey.user !== user) {
+    setPrevMenuKey({ path: location.pathname, user });
+    setMenuOpen(false);
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -25,10 +37,10 @@ export default function Navbar() {
       if (e.key === 'Escape') setMenuOpen(false);
     }
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKey);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKey);
     };
   }, [menuOpen]);
@@ -117,23 +129,13 @@ export default function Navbar() {
                           <div className="vertice-userbox__name text-capitalize">{user.username}</div>
                           {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
                         </div>
-                        <div className="vertice-userbox__divider" aria-hidden="true" />
-                        <button
-                          type="button"
-                          className="vertice-userbox__item"
-                          role="menuitem"
-                          onClick={handleLogout}
-                        >
-                          Cerrar sesión
-                        </button>
                       </div>
                     )}
                   </li>
                   <li className="nav-item ms-lg-2">
                     <button
                       type="button"
-                      className="btn btn-outline-dark btn-sm rounded-pill px-3"
-                      style={{ fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}
+                      className="btn btn-outline-dark btn-sm rounded-pill px-3 vertice-userbox__logout"
                       onClick={handleLogout}
                     >
                       Cerrar sesión

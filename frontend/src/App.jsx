@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './views/Home';
 import ProjectDetail from './views/ProjectDetail';
@@ -12,10 +12,10 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            {/* Portfolio público. Home sin protección. ProtectedRoute disponible para futuras rutas privadas. */}
+            {/* Portfolio público. Home sin protección. Los guards de rutas privadas se agregarán en TP8 con backend real. */}
             <Route index element={<Home />} />
             <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
+            <Route path="register" element={<Navigate to="/registro" replace />} />
             <Route path="registro" element={<Register />} />
           </Route>
           {/* Vista inmersiva: pantalla completa, sin Navbar/Footer ni scroll de página */}
