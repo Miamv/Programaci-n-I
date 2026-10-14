@@ -1,6 +1,6 @@
-/* eslint-disable react-refresh/only-export-components -- contexto + hook coubicados a propósito (mock TP7 en memoria); se separará si el módulo crece en TP8 */
+/* eslint-disable react-refresh/only-export-components -- contexto + hook coubicados a propósito */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { login as loginApi, register as registerApi, getProfile } from '../services/api';
+import { login as loginApi, register as registerApi, getProfile, logout as logoutApi } from '../services/api';
 
 export const AuthContext = createContext(null);
 
@@ -20,7 +20,20 @@ export function AuthProvider({ children }) {
     return null;
   });
 
+  const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem('access_token')));
+
   const isAuthenticated = Boolean(user);
+
+  // Mantiene sincronizado el estado ante expiración o invalidación del token en Axios
+  useEffect(() => {
+    function handleSessionExpired() {
+      setUser(null);
+    }
+    window.addEventListener('auth:logout', handleSessionExpired);
+    return () => {
+      window.removeEventListener('auth:logout', handleSessionExpired);
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -45,6 +58,9 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('auth_user');
           setUser(null);
         }
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   }, []);
 
@@ -206,7 +222,15 @@ export function AuthProvider({ children }) {
     []
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refresh = localStorage.getItem('refresh_token');
+    if (refresh) {
+      try {
+        await logoutApi(refresh);
+      } catch {
+        // Si el backend falla o el token ya fue invalidado, se procede con la limpieza local
+      }
+    }
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('auth_user');
@@ -214,8 +238,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isAuthenticated, login, register, logout }),
-    [user, isAuthenticated, login, register, logout]
+    () => ({ user, isAuthenticated, isLoading, login, register, logout }),
+    [user, isAuthenticated, isLoading, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

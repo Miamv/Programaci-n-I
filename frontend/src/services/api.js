@@ -15,6 +15,58 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Si recibimos 401 y no es login ni refresh, intentamos refrescar el token
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login/') &&
+      !originalRequest.url?.includes('/auth/register/') &&
+      !originalRequest.url?.includes('/auth/refresh/')
+    ) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      if (refreshToken) {
+        try {
+          const res = await axios.post(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/auth/refresh/`,
+            { refresh: refreshToken },
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+
+          const newAccessToken = res.data.access;
+          localStorage.setItem('access_token', newAccessToken);
+
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        } catch (refreshErr) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('auth_user');
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('auth:logout'));
+          }
+          return Promise.reject(refreshErr);
+        }
+      } else {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('auth_user');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:logout'));
+        }
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export function getProjects() {
   return api.get('/projects/');
 }
@@ -49,6 +101,14 @@ export function register(data) {
 
 export function getProfile() {
   return api.get('/auth/profile/');
+}
+
+export function refreshToken(refresh) {
+  return api.post('/auth/refresh/', { refresh });
+}
+
+export function logout(refresh) {
+  return api.post('/auth/logout/', { refresh });
 }
 
 export default api;
