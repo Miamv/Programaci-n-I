@@ -1,12 +1,15 @@
 import { Link } from 'react-router-dom';
+import { resolveMediaUrl } from '../services/api';
 
 function formatCategory(category) {
   if (!category) return 'Proyecto';
   return category.replace(/_/g, ' ');
 }
 
-export default function ProjectCard({ project }) {
-  const coverImage = project.coverImage || null;
+export default function ProjectCard({ project, coverUrl }) {
+  const coverImage = resolveMediaUrl(
+    coverUrl || project.coverImage || project.cover_image || project.image || null
+  );
   const title = project.title || 'Proyecto';
   const category = formatCategory(project.category);
 

@@ -12,7 +12,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            {/* Portfolio público. Home sin protección. Los guards de rutas privadas se agregarán en TP8 con backend real. */}
+            {/* Portfolio público por decisión arquitectónica: todas las rutas son públicas y no llevan guards de autenticación. */}
             <Route index element={<Home />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Navigate to="/registro" replace />} />

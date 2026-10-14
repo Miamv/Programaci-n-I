@@ -9,33 +9,87 @@ function Chevron({ dir = 'left' }) {
   );
 }
 
-export default function ProjectCards({ projects, error }) {
+const COPIES = 3;
+const RESET_DELAY = 420;
+
+export default function ProjectCards({ projects, covers, error }) {
   const safeProjects = useMemo(() => (Array.isArray(projects) ? projects : []), [projects]);
-  const [activeIndex, setActiveIndex] = useState(0);
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
+  const instantRef = useRef(false);
+  const resetTimer = useRef(null);
 
-  const hasProjects = safeProjects.length > 0;
+  const n = safeProjects.length;
+  const hasProjects = n > 0;
 
-  const clampedIndex = hasProjects ? Math.min(activeIndex, safeProjects.length - 1) : 0;
-  const activeId = useMemo(() => safeProjects[clampedIndex]?.id ?? null, [safeProjects, clampedIndex]);
+  // Rueda giratoria: se triplica la lista para que nunca se vean huecos
+  // a los costados; la copia del medio es la visible.
+  const slides = useMemo(() => {
+    const arr = [];
+    for (let c = 0; c < COPIES; c += 1) {
+      for (const project of safeProjects) arr.push({ project, key: `${project.id}-c${c}` });
+    }
+    return arr;
+  }, [safeProjects]);
+
+  const [activeIndex, setActiveIndex] = useState(n);
+  const [prevN, setPrevN] = useState(n);
+  if (prevN !== n) {
+    setPrevN(n);
+    setActiveIndex(n);
+  }
+
+  const total = slides.length;
+  const safeIndex = total > 0 ? Math.min(Math.max(activeIndex, 0), total - 1) : 0;
 
   useEffect(() => {
     const viewport = viewportRef.current;
     const track = trackRef.current;
-    if (!viewport || !track || !hasProjects) return;
-    const active = track.querySelector(`[data-project-id="${activeId}"]`);
+    if (!viewport || !track || !hasProjects || total === 0) return;
+    const active = track.children[safeIndex];
     if (!active) return;
     const left = active.offsetLeft - viewport.clientWidth / 2 + active.clientWidth / 2;
-    viewport.scrollTo({ left, behavior: 'smooth' });
-  }, [activeId, hasProjects]);
+    // Saltos largos (primera carga) van sin animación para no ver barrido.
+    const farJump = Math.abs(viewport.scrollLeft - left) > viewport.clientWidth;
+    viewport.scrollTo({ left, behavior: instantRef.current || farJump ? 'auto' : 'smooth' });
+    instantRef.current = false;
+
+    // Reposicionamiento silencioso a la copia del medio cuando se llega
+    // a una copia externa: el contenido es idéntico, no se nota el salto.
+    if (safeIndex < n || safeIndex >= 2 * n) {
+      const target = safeIndex < n ? safeIndex + n : safeIndex - n;
+      resetTimer.current = setTimeout(() => {
+        instantRef.current = true;
+        setActiveIndex(target);
+      }, RESET_DELAY);
+    }
+    return () => clearTimeout(resetTimer.current);
+  }, [safeIndex, hasProjects, total, n]);
+
+  function step(delta) {
+    if (!hasProjects) return;
+    clearTimeout(resetTimer.current);
+    const next = safeIndex + delta;
+    if (next < 0 || next >= total) {
+      instantRef.current = true;
+      setActiveIndex((((next % n) + n) % n) + n);
+    } else {
+      setActiveIndex(next);
+    }
+  }
 
   function prev() {
-    setActiveIndex((i) => (i > 0 ? i - 1 : safeProjects.length - 1));
+    step(-1);
   }
 
   function next() {
-    setActiveIndex((i) => (i < safeProjects.length - 1 ? i + 1 : 0));
+    step(1);
+  }
+
+  function select(index) {
+    clearTimeout(resetTimer.current);
+    if (Math.abs(index - safeIndex) > 1) instantRef.current = true;
+    setActiveIndex(index);
   }
 
   return (
@@ -68,20 +122,19 @@ export default function ProjectCards({ projects, error }) {
 
           <div className="vertice-projects__viewport" ref={viewportRef}>
             <div className="vertice-projects__track" ref={trackRef}>
-              {safeProjects.map((project, index) => (
+              {slides.map(({ project, key }, index) => (
                 <div
-                  key={project.id}
-                  data-project-id={project.id}
-                  className={`vertice-projects__item ${index === clampedIndex ? 'is-active' : 'is-idle'}`}
-                  onClick={() => setActiveIndex(index)}
+                  key={key}
+                  className={`vertice-projects__item ${index === safeIndex ? 'is-active' : 'is-idle'}`}
+                  onClick={() => select(index)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') setActiveIndex(index);
+                    if (e.key === 'Enter' || e.key === ' ') select(index);
                   }}
                   aria-label={`Ver ${project.title}`}
                 >
-                  <ProjectCard project={project} />
+                  <ProjectCard project={project} coverUrl={covers?.[project.id]} />
                 </div>
               ))}
             </div>

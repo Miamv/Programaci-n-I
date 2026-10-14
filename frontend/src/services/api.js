@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 api.interceptors.request.use((config) => {
@@ -12,6 +17,56 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Si recibimos 401 y no es login ni refresh, intentamos refrescar el token
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login/') &&
+      !originalRequest.url?.includes('/auth/register/') &&
+      !originalRequest.url?.includes('/auth/refresh/')
+    ) {
+      originalRequest._retry = true;
+      const storedRefresh = localStorage.getItem('refresh_token');
+
+      if (storedRefresh) {
+        try {
+          // Reutiliza el helper: no hay recursión porque /auth/refresh/
+          // está excluido del reintento en este mismo interceptor.
+          const res = await refreshToken(storedRefresh);
+
+          const newAccessToken = res.data.access;
+          localStorage.setItem('access_token', newAccessToken);
+
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        } catch (refreshErr) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('auth_user');
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('auth:logout'));
+          }
+          return Promise.reject(refreshErr);
+        }
+      } else {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('auth_user');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:logout'));
+        }
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export function getProjects() {
   return api.get('/projects/');
 }
@@ -20,8 +75,21 @@ export function getProject(id) {
   return api.get(`/projects/${id}/`);
 }
 
+export function getApiOrigin() {
+  return API_BASE_URL.replace(/\/api\/?$/, '');
+}
+
+export function resolveMediaUrl(url) {
+  if (!url) return null;
+  if (/^(https?:\/\/|data:|blob:)/i.test(url)) return url;
+  const origin = getApiOrigin();
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${origin}${path}`;
+}
+
 export function getMedia(projectId) {
-  return api.get('/media/', { params: { project: projectId } });
+  const params = projectId === undefined || projectId === null ? undefined : { project: projectId };
+  return params ? api.get('/media/', { params }) : api.get('/media/');
 }
 
 export function getProfiles() {
@@ -42,6 +110,18 @@ export function login(credentials) {
 
 export function register(data) {
   return api.post('/auth/register/', data);
+}
+
+export function getProfile() {
+  return api.get('/auth/profile/');
+}
+
+export function refreshToken(refresh) {
+  return api.post('/auth/refresh/', { refresh });
+}
+
+export function logout(refresh) {
+  return api.post('/auth/logout/', { refresh });
 }
 
 export default api;

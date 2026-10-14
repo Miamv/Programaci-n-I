@@ -22,12 +22,12 @@ export default function Register() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setStatus('loading');
     setErrorMessage('');
 
-    const result = register(form);
+    const result = await register(form);
 
     if (result.success) {
       setStatus('success');

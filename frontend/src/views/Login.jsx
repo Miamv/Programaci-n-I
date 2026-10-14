@@ -18,7 +18,7 @@ export default function Login() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!form.username.trim() || !form.password) {
       setStatus('error');
@@ -28,7 +28,7 @@ export default function Login() {
     setStatus('loading');
     setErrorMessage('');
 
-    const result = login({ username: form.username.trim(), password: form.password });
+    const result = await login({ username: form.username.trim(), password: form.password });
 
     if (result.success) {
       setStatus('success');

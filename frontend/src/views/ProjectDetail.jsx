@@ -95,12 +95,14 @@ export default function ProjectDetail() {
 
       {!sheetExpanded && <ProjectDock mode={mode} onSelect={selectDock} />}
 
-      <ProjectSheet
-        project={project}
-        state={sheet}
-        onExpand={expandSheet}
-        onCollapse={collapseSheet}
-      />
+      {mode === 'info' && (
+        <ProjectSheet
+          project={project}
+          state={sheet}
+          onExpand={expandSheet}
+          onCollapse={collapseSheet}
+        />
+      )}
     </div>
   );
 }
