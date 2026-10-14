@@ -1403,7 +1403,7 @@ a {
 .pv-canvasgal__dots {
   position: absolute;
   left: 50%;
-  bottom: 10.8rem;
+  bottom: 5.4rem;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -1440,7 +1440,7 @@ a {
 .pv-canvas__hint {
   position: absolute;
   left: 0.9rem;
-  bottom: 10.8rem;
+  bottom: 5.4rem;
   z-index: 20;
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -1457,7 +1457,7 @@ a {
 .pv-canvas__fs {
   position: absolute;
   right: 0.9rem;
-  bottom: 10.8rem;
+  bottom: 5.4rem;
   z-index: 20;
 }
 
@@ -1793,7 +1793,7 @@ a {
   .pv-canvas__hint,
   .pv-canvas__fs,
   .pv-canvasgal__dots {
-    bottom: 10.2rem;
+    bottom: 5rem;
   }
 
   .pv-canvasgal__dots {

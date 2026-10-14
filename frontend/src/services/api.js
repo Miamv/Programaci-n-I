@@ -75,8 +75,22 @@ export function getProject(id) {
   return api.get(`/projects/${id}/`);
 }
 
+export function getApiOrigin() {
+  const base = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+  return base.replace(/\/api\/?$/, '');
+}
+
+export function resolveMediaUrl(url) {
+  if (!url) return null;
+  if (/^(https?:\/\/|data:|blob:)/i.test(url)) return url;
+  const origin = getApiOrigin();
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${origin}${path}`;
+}
+
 export function getMedia(projectId) {
-  return api.get('/media/', { params: { project: projectId } });
+  const params = projectId === undefined || projectId === null ? undefined : { project: projectId };
+  return params ? api.get('/media/', { params }) : api.get('/media/');
 }
 
 export function getProfiles() {
