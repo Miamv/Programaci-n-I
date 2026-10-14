@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -30,15 +32,13 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/refresh/')
     ) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('refresh_token');
+      const storedRefresh = localStorage.getItem('refresh_token');
 
-      if (refreshToken) {
+      if (storedRefresh) {
         try {
-          const res = await axios.post(
-            `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/auth/refresh/`,
-            { refresh: refreshToken },
-            { headers: { 'Content-Type': 'application/json' } }
-          );
+          // Reutiliza el helper: no hay recursión porque /auth/refresh/
+          // está excluido del reintento en este mismo interceptor.
+          const res = await refreshToken(storedRefresh);
 
           const newAccessToken = res.data.access;
           localStorage.setItem('access_token', newAccessToken);
@@ -76,8 +76,7 @@ export function getProject(id) {
 }
 
 export function getApiOrigin() {
-  const base = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-  return base.replace(/\/api\/?$/, '');
+  return API_BASE_URL.replace(/\/api\/?$/, '');
 }
 
 export function resolveMediaUrl(url) {
