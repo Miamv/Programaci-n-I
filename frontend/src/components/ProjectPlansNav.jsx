@@ -1,4 +1,4 @@
-import { PLAN_KEYS, PLAN_LABELS } from '../content/mockProjects';
+import { PLAN_KEYS, PLAN_LABELS } from '../config/plans';
 
 export default function ProjectPlansNav({ active, onSelect }) {
   return (
@@ -12,7 +12,7 @@ export default function ProjectPlansNav({ active, onSelect }) {
           className={`pv-plansnav__btn ${active === key ? 'is-active' : ''}`}
           onClick={() => onSelect(key)}
         >
-          {PLAN_LABELS[key]}
+          {PLAN_LABELS[key] || key}
         </button>
       ))}
     </div>

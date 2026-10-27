@@ -41,9 +41,14 @@ export default function ProjectSheet({ project, state, onCollapse }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state, onCollapse]);
 
-  if (state !== 'expanded') {
+  if (state !== 'expanded' || !project) {
     return null;
   }
+
+  const title = project.titulo || project.title || 'Proyecto';
+  const subtitle = project.subtitulo || project.category || 'Proyecto del estudio';
+  const description = project.memoriaDescriptiva || project.description || '';
+  const specs = project.specs;
 
   return (
     <>
@@ -56,7 +61,7 @@ export default function ProjectSheet({ project, state, onCollapse }) {
         className="pv-sheet is-expanded"
         role="dialog"
         aria-modal="true"
-        aria-label={`Información de ${project.titulo}`}
+        aria-label={`Información de ${title}`}
       >
         <div
           className="pv-sheet__grab"
@@ -76,20 +81,26 @@ export default function ProjectSheet({ project, state, onCollapse }) {
         </div>
 
         <div className="pv-sheet__scroll">
-          <h2 className="pv-sheet__title">{project.titulo}</h2>
-          <p className="pv-sheet__subtitle">{project.subtitulo}</p>
-          <p className="pv-sheet__body">{project.memoriaDescriptiva}</p>
+          <h2 className="pv-sheet__title">{title}</h2>
+          {subtitle && <p className="pv-sheet__subtitle">{subtitle}</p>}
+          {description && <p className="pv-sheet__body">{description}</p>}
         </div>
 
-        <div className="pv-sheet__specs">
-          <span>{project.specs.superficie}</span>
-          <span aria-hidden="true">·</span>
-          <span>{dormLabel(project.specs.dormitorios)}</span>
-          <span aria-hidden="true">·</span>
-          <span>{banosLabel(project.specs.banos)}</span>
-          <span aria-hidden="true">·</span>
-          <span>{project.specs.estado}</span>
-        </div>
+        {specs && (
+          <div className="pv-sheet__specs">
+            {specs.superficie && <span>{specs.superficie}</span>}
+            {specs.superficie && specs.dormitorios != null && <span aria-hidden="true">·</span>}
+            {specs.dormitorios != null && <span>{dormLabel(specs.dormitorios)}</span>}
+            {specs.dormitorios != null && specs.banos != null && <span aria-hidden="true">·</span>}
+            {specs.banos != null && <span>{banosLabel(specs.banos)}</span>}
+            {specs.estado && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{specs.estado}</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
