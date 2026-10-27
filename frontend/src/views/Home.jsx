@@ -17,6 +17,30 @@ function errorMessage(reason, fallback) {
   return reason?.response?.data?.detail || reason?.message || fallback;
 }
 
+// El backend no garantiza el orden de /media/, así que no se puede asumir que el
+// primer elemento de un proyecto es su portada. Se prioriza el tipo `image` y se
+// usa la extensión del archivo sólo como red de seguridad para el resto.
+const IMAGE_FILE_RE = /\.(avif|webp|jpe?g|png|gif|bmp|svg)(\?.*)?$/i;
+
+function buildCovers(items) {
+  const byType = {};
+  const byExtension = {};
+
+  for (const item of items) {
+    const projectId = item?.project;
+    const file = item?.file;
+    if (projectId == null || !file) continue;
+
+    if (item.media_type === 'image') {
+      if (!byType[projectId]) byType[projectId] = file;
+    } else if (!byType[projectId] && !byExtension[projectId] && IMAGE_FILE_RE.test(file)) {
+      byExtension[projectId] = file;
+    }
+  }
+
+  return { ...byExtension, ...byType };
+}
+
 export default function Home() {
   const [projects, setProjects] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -26,6 +50,7 @@ export default function Home() {
   const [projectsError, setProjectsError] = useState(null);
   const [brandsError, setBrandsError] = useState(null);
   const [teamError, setTeamError] = useState(null);
+  const [mediaError, setMediaError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,14 +84,9 @@ export default function Home() {
       }
 
       if (mediaRes.status === 'fulfilled') {
-        const items = toList(mediaRes.value.data);
-        const byProject = {};
-        for (const item of items) {
-          const pid = item?.project;
-          if (pid == null || byProject[pid] || !item?.file) continue;
-          byProject[pid] = item.file;
-        }
-        setCovers(byProject);
+        setCovers(buildCovers(toList(mediaRes.value.data)));
+      } else {
+        setMediaError(errorMessage(mediaRes.reason, 'Error al cargar las imágenes de los proyectos.'));
       }
 
       setLoading(false);
@@ -86,7 +106,7 @@ export default function Home() {
       <About />
       <Team profiles={profiles} error={teamError} />
       <BrandsCarousel brands={brands} error={brandsError} />
-      <ProjectCards projects={projects} covers={covers} error={projectsError} />
+      <ProjectCards projects={projects} covers={covers} error={projectsError} mediaError={mediaError} />
       <ContactSection title="Contanos tu proyecto" />
     </>
   );

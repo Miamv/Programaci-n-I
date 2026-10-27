@@ -1346,7 +1346,7 @@ a {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  touch-action: pan-y;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -1403,7 +1403,7 @@ a {
 .pv-canvasgal__dots {
   position: absolute;
   left: 50%;
-  bottom: 5.4rem;
+  bottom: calc(4.6rem + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -1440,7 +1440,7 @@ a {
 .pv-canvas__hint {
   position: absolute;
   left: 0.9rem;
-  bottom: 5.4rem;
+  bottom: calc(4.6rem + env(safe-area-inset-bottom));
   z-index: 20;
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -1457,7 +1457,7 @@ a {
 .pv-canvas__fs {
   position: absolute;
   right: 0.9rem;
-  bottom: 5.4rem;
+  bottom: calc(4.6rem + env(safe-area-inset-bottom));
   z-index: 20;
 }
 
@@ -1628,6 +1628,48 @@ a {
   color: rgba(15, 27, 42, 0.72);
 }
 
+
+.pv-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 27, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 38;
+  animation: pv-fade-in 0.25s ease;
+}
+
+@keyframes pv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pv-sheet__close-btn {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.8rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 27, 42, 0.12);
+  background: rgba(15, 27, 42, 0.06);
+  color: var(--color-ink);
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.pv-sheet__close-btn:hover {
+  background: rgba(15, 27, 42, 0.14);
+  transform: scale(1.08);
+}
+
 .pv-sheet.is-expanded {
   top: 4.2rem;
   bottom: 0.8rem;
@@ -1651,7 +1693,7 @@ a {
 .pv-sheet__grab {
   position: relative;
   padding: 0.55rem 1rem 0.45rem;
-  touch-action: pan-y;
+  touch-action: none;
   cursor: grab;
 }
 
@@ -1793,7 +1835,7 @@ a {
   .pv-canvas__hint,
   .pv-canvas__fs,
   .pv-canvasgal__dots {
-    bottom: 5rem;
+    bottom: calc(4.2rem + env(safe-area-inset-bottom));
   }
 
   .pv-canvasgal__dots {

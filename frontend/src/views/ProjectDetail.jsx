@@ -15,8 +15,9 @@ export default function ProjectDetail() {
   const project = useMemo(() => getMockProject(id), [id]);
 
   const [mode, setMode] = useState('renders');
+  const [lastVisualMode, setLastVisualMode] = useState('renders');
   const [plano, setPlano] = useState(PLAN_KEYS[0]);
-  const [sheet, setSheet] = useState('compact');
+  const [sheet, setSheet] = useState('closed');
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -37,27 +38,34 @@ export default function ProjectDetail() {
 
   function selectDock(key) {
     if (key === 'info') {
+      if (sheet === 'expanded') {
+        collapseSheet();
+        return;
+      }
       setMode('info');
       setSheet('expanded');
       return;
     }
     setMode(key);
-    setSheet('compact');
+    setLastVisualMode(key);
+    setSheet('closed');
   }
 
   function expandSheet() {
+    setMode('info');
     setSheet('expanded');
   }
 
   function collapseSheet() {
-    setSheet('compact');
-    if (mode === 'info') setMode('renders');
+    setSheet('closed');
+    setMode(lastVisualMode || 'renders');
   }
 
   function selectPlano(key) {
     setPlano(key);
     setMode('planos');
-    setSheet('compact');
+    setLastVisualMode('planos');
+    setSheet('closed');
   }
 
   const showLocation = mode === 'ubicacion';
@@ -77,6 +85,7 @@ export default function ProjectDetail() {
             images={galleryImages}
             title={project.titulo}
             hint={mode === 'planos' ? 'Zoom / pan · deslizar' : 'Explorar · deslizar'}
+            onSwipeUp={expandSheet}
           />
         )}
 
@@ -86,7 +95,7 @@ export default function ProjectDetail() {
           onBack={() => navigate('/')}
         />
 
-        {showLocation && <ProjectLocation project={project} />}
+        {showLocation && <ProjectLocation project={project} onSwipeUp={expandSheet} />}
       </div>
 
       {!sheetExpanded && mode === 'planos' && (
@@ -95,14 +104,12 @@ export default function ProjectDetail() {
 
       {!sheetExpanded && <ProjectDock mode={mode} onSelect={selectDock} />}
 
-      {mode === 'info' && (
-        <ProjectSheet
-          project={project}
-          state={sheet}
-          onExpand={expandSheet}
-          onCollapse={collapseSheet}
-        />
-      )}
+      <ProjectSheet
+        project={project}
+        state={sheet}
+        onExpand={expandSheet}
+        onCollapse={collapseSheet}
+      />
     </div>
   );
 }

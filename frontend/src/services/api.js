@@ -17,6 +17,47 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function clearSession() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('auth_user');
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+  }
+}
+
+// Single-flight: varias peticiones 401 simultáneas comparten la MISMA promesa de
+// refresh, así no se disparan refresh concurrentes (y un fallo dispara un único logout).
+let refreshPromise = null;
+
+function refreshAccessToken() {
+  if (!refreshPromise) {
+    const storedRefresh = localStorage.getItem('refresh_token');
+
+    if (!storedRefresh) {
+      clearSession();
+      return Promise.reject(new Error('No hay refresh token disponible.'));
+    }
+
+    // No hay recursión: /auth/refresh/ está excluido del reintento en el interceptor.
+    refreshPromise = refreshToken(storedRefresh)
+      .then((res) => {
+        const newAccessToken = res.data.access;
+        localStorage.setItem('access_token', newAccessToken);
+        return newAccessToken;
+      })
+      .catch((refreshErr) => {
+        clearSession();
+        throw refreshErr;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -32,35 +73,12 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/refresh/')
     ) {
       originalRequest._retry = true;
-      const storedRefresh = localStorage.getItem('refresh_token');
 
-      if (storedRefresh) {
-        try {
-          // Reutiliza el helper: no hay recursión porque /auth/refresh/
-          // está excluido del reintento en este mismo interceptor.
-          const res = await refreshToken(storedRefresh);
-
-          const newAccessToken = res.data.access;
-          localStorage.setItem('access_token', newAccessToken);
-
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return api(originalRequest);
-        } catch (refreshErr) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('auth_user');
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('auth:logout'));
-          }
-          return Promise.reject(refreshErr);
-        }
-      } else {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('auth_user');
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth:logout'));
-        }
-      }
+      // Si el refresh falla, la promesa rechaza y el error original se descarta:
+      // clearSession() ya emitió auth:logout para resincronizar el contexto.
+      const newAccessToken = await refreshAccessToken();
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      return api(originalRequest);
     }
 
     return Promise.reject(error);

@@ -1,6 +1,29 @@
-export default function ProjectLocation({ project }) {
+import { useRef } from 'react';
+
+const SWIPE_THRESHOLD = 42;
+
+export default function ProjectLocation({ project, onSwipeUp }) {
+  const startY = useRef(null);
+
+  function handleTouchStart(e) {
+    startY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e) {
+    if (startY.current == null) return;
+    const delta = startY.current - e.changedTouches[0].clientY;
+    startY.current = null;
+    if (delta > SWIPE_THRESHOLD && onSwipeUp) {
+      onSwipeUp();
+    }
+  }
+
   return (
-    <div className="pv-location">
+    <div
+      className="pv-location"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="pv-location__card">
         <span className="pv-location__pin" aria-hidden="true">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none">

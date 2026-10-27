@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-const DRAG_THRESHOLD = 48;
+const DRAG_THRESHOLD = 40;
 
 function dormLabel(n) {
   return `${n} dorm`;
@@ -8,11 +8,6 @@ function dormLabel(n) {
 
 function banosLabel(n) {
   return `${n} ${n === 1 ? 'baño' : 'baños'}`;
-}
-
-function sheetSummary(project) {
-  const s = project.specs;
-  return `${s.superficie} · ${dormLabel(s.dormitorios)} · ${banosLabel(s.banos)} · ${s.estado}`;
 }
 
 function useDrag(onSwipeUp, onSwipeDown) {
@@ -26,69 +21,76 @@ function useDrag(onSwipeUp, onSwipeDown) {
     if (startY.current == null) return;
     const delta = startY.current - e.clientY;
     startY.current = null;
-    if (delta > DRAG_THRESHOLD) onSwipeUp();
-    else if (delta < -DRAG_THRESHOLD) onSwipeDown();
+    if (delta > DRAG_THRESHOLD) onSwipeUp?.();
+    else if (delta < -DRAG_THRESHOLD) onSwipeDown?.();
   }
 
   return { handlePointerDown, handlePointerUp };
 }
 
-export default function ProjectSheet({ project, state, onExpand, onCollapse }) {
-  const compactDrag = useDrag(onExpand, () => {});
+export default function ProjectSheet({ project, state, onCollapse }) {
   const expandedDrag = useDrag(() => {}, onCollapse);
 
-  if (state === 'compact') {
-    return (
-      <div className="pv-sheet is-compact">
-        <button
-          type="button"
-          className="pv-sheet__compact-hit"
-          onClick={onExpand}
-          onPointerDown={compactDrag.handlePointerDown}
-          onPointerUp={compactDrag.handlePointerUp}
-          aria-label="Expandir memoria descriptiva"
-        >
-          <span className="pv-sheet__handle" aria-hidden="true" />
-          <span className="pv-sheet__compact-row">
-            <span className="pv-sheet__compact-title">Memoria descriptiva</span>
-            <span className="pv-sheet__compact-action">— expandir</span>
-          </span>
-          <span className="pv-sheet__compact-summary">{sheetSummary(project)}</span>
-        </button>
-      </div>
-    );
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && state === 'expanded') {
+        onCollapse?.();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state, onCollapse]);
+
+  if (state !== 'expanded') {
+    return null;
   }
 
   return (
-    <div className="pv-sheet is-expanded" role="dialog" aria-modal="false" aria-label={`Información de ${project.titulo}`}>
+    <>
       <div
-        className="pv-sheet__grab"
-        onPointerDown={expandedDrag.handlePointerDown}
-        onPointerUp={expandedDrag.handlePointerUp}
-        onClick={(e) => {
-          if (e.target.closest('.pv-sheet__scroll')) return;
-          onCollapse();
-        }}
-        aria-label="Arrastrar hacia abajo para compactar"
+        className="pv-sheet-backdrop"
+        onClick={onCollapse}
+        aria-hidden="true"
+      />
+      <div
+        className="pv-sheet is-expanded"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Información de ${project.titulo}`}
       >
-        <span className="pv-sheet__handle pv-sheet__handle--grip" aria-hidden="true" />
-      </div>
+        <div
+          className="pv-sheet__grab"
+          onPointerDown={expandedDrag.handlePointerDown}
+          onPointerUp={expandedDrag.handlePointerUp}
+          aria-label="Arrastrar hacia abajo para cerrar"
+        >
+          <span className="pv-sheet__handle pv-sheet__handle--grip" aria-hidden="true" />
+          <button
+            type="button"
+            className="pv-sheet__close-btn"
+            onClick={onCollapse}
+            aria-label="Cerrar memoria descriptiva"
+          >
+            ✕
+          </button>
+        </div>
 
-      <div className="pv-sheet__scroll">
-        <h2 className="pv-sheet__title">{project.titulo}</h2>
-        <p className="pv-sheet__subtitle">{project.subtitulo}</p>
-        <p className="pv-sheet__body">{project.memoriaDescriptiva}</p>
-      </div>
+        <div className="pv-sheet__scroll">
+          <h2 className="pv-sheet__title">{project.titulo}</h2>
+          <p className="pv-sheet__subtitle">{project.subtitulo}</p>
+          <p className="pv-sheet__body">{project.memoriaDescriptiva}</p>
+        </div>
 
-      <div className="pv-sheet__specs">
-        <span>{project.specs.superficie}</span>
-        <span aria-hidden="true">·</span>
-        <span>{dormLabel(project.specs.dormitorios)}</span>
-        <span aria-hidden="true">·</span>
-        <span>{banosLabel(project.specs.banos)}</span>
-        <span aria-hidden="true">·</span>
-        <span>{project.specs.estado}</span>
+        <div className="pv-sheet__specs">
+          <span>{project.specs.superficie}</span>
+          <span aria-hidden="true">·</span>
+          <span>{dormLabel(project.specs.dormitorios)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{banosLabel(project.specs.banos)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{project.specs.estado}</span>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

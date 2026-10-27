@@ -12,7 +12,7 @@ function Chevron({ dir = 'left' }) {
 const COPIES = 3;
 const RESET_DELAY = 420;
 
-export default function ProjectCards({ projects, covers, error }) {
+export default function ProjectCards({ projects, covers, error, mediaError }) {
   const safeProjects = useMemo(() => (Array.isArray(projects) ? projects : []), [projects]);
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
@@ -144,6 +144,12 @@ export default function ProjectCards({ projects, covers, error }) {
             <Chevron dir="right" />
           </button>
         </div>
+      )}
+
+      {hasProjects && mediaError && (
+        <p className="container vertice-projects__media-note">
+          No se pudieron cargar las imágenes de portada. {mediaError}
+        </p>
       )}
     </section>
   );
