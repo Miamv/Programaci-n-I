@@ -87,6 +87,14 @@ class Media(models.Model):
         ('exterior', 'Exterior'),
     ]
 
+    PLAN_TYPES = [
+        ('planta', 'Planta'),
+        ('corte', 'Corte'),
+        ('vista', 'Vista'),
+        ('planimetria', 'Planimetría'),
+        ('detalle', 'Detalle Constructivo'),
+    ]
+
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
@@ -95,6 +103,7 @@ class Media(models.Model):
     file = models.FileField(upload_to='projects/%Y/%m/')
     media_type = models.CharField(max_length=20, choices=MEDIA_TYPES)
     zone = models.CharField(max_length=10, choices=ZONE_CHOICES, blank=True)
+    plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, blank=True, null=True)
 
     def __str__(self):
         return f'{self.media_type} - {self.project.title}'

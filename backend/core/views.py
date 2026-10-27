@@ -20,6 +20,7 @@ class BrandViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         return [CanManageBrand()]
 
+
 class ProfessionalProfileViewSet(viewsets.ModelViewSet):
     queryset = ProfessionalProfile.objects.all()
     serializer_class = ProfessionalProfileSerializer
@@ -31,7 +32,7 @@ class ProfessionalProfileViewSet(viewsets.ModelViewSet):
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Project.objects.all()
+    queryset = Project.objects.all().prefetch_related('brands', 'media')
     serializer_class = ProjectSerializer
 
     def get_permissions(self):
@@ -43,6 +44,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
 class MediaViewSet(viewsets.ModelViewSet):
     queryset = Media.objects.all()
     serializer_class = MediaSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+        return qs
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -72,4 +80,3 @@ class ContactViewSet(viewsets.ModelViewSet):
 
         # OWNER solo puede ver contactos de sus propios perfiles.
         return Contact.objects.filter(profile__users=user)
-    
