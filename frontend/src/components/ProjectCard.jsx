@@ -1,20 +1,26 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { resolveMediaUrl } from '../services/api';
 
 function formatCategory(category) {
   if (!category) return 'Proyecto';
   return category.replace(/_/g, ' ');
 }
 
-export default function ProjectCard({ project }) {
-  const coverImage = project.coverImage || null;
+export default function ProjectCard({ project, coverUrl }) {
+  const [brokenCover, setBrokenCover] = useState(false);
+  const coverImage = resolveMediaUrl(
+    coverUrl || project.coverImage || project.cover_image || project.image || null
+  );
+  const showCover = coverImage && !brokenCover;
   const title = project.title || 'Proyecto';
   const category = formatCategory(project.category);
 
   return (
     <article className="vertice-project-card">
       <div className="vertice-project-card__media">
-        {coverImage ? (
-          <img src={coverImage} alt={title} loading="lazy" />
+        {showCover ? (
+          <img src={coverImage} alt={title} loading="lazy" onError={() => setBrokenCover(true)} />
         ) : (
           <div className="vertice-project-card__media-fallback">
             <span>{title}</span>

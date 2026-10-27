@@ -3,13 +3,15 @@ import ImageFullscreen from './ImageFullscreen';
 
 const SWIPE_THRESHOLD = 42;
 
-export default function ProjectCanvasGallery({ images, title, hint }) {
+export default function ProjectCanvasGallery({ images, title, hint, onSwipeUp }) {
   const [index, setIndex] = useState(0);
   const [fallbackFs, setFallbackFs] = useState(false);
   const [isFs, setIsFs] = useState(false);
   const rootRef = useRef(null);
   const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
   const mouseStartX = useRef(null);
+  const mouseStartY = useRef(null);
 
   const count = images.length;
   const active = images[index] ?? images[0];
@@ -32,27 +34,50 @@ export default function ProjectCanvasGallery({ images, title, hint }) {
 
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
   }
 
   function handleTouchEnd(e) {
-    if (touchStartX.current == null) return;
-    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (touchStartX.current == null || touchStartY.current == null) return;
+    const deltaX = touchStartX.current - e.changedTouches[0].clientX;
+    const deltaY = touchStartY.current - e.changedTouches[0].clientY;
     touchStartX.current = null;
-    if (Math.abs(delta) < SWIPE_THRESHOLD || count < 2) return;
-    if (delta > 0) next();
+    touchStartY.current = null;
+
+    // Si el movimiento vertical hacia arriba es predominante, abrir Info
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) >= SWIPE_THRESHOLD) {
+      if (deltaY > 0 && onSwipeUp) {
+        onSwipeUp();
+      }
+      return;
+    }
+
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD || count < 2) return;
+    if (deltaX > 0) next();
     else prev();
   }
 
   function handleMouseDown(e) {
     mouseStartX.current = e.clientX;
+    mouseStartY.current = e.clientY;
   }
 
   function handleMouseUp(e) {
-    if (mouseStartX.current == null) return;
-    const delta = mouseStartX.current - e.clientX;
+    if (mouseStartX.current == null || mouseStartY.current == null) return;
+    const deltaX = mouseStartX.current - e.clientX;
+    const deltaY = mouseStartY.current - e.clientY;
     mouseStartX.current = null;
-    if (Math.abs(delta) < SWIPE_THRESHOLD || count < 2) return;
-    if (delta > 0) next();
+    mouseStartY.current = null;
+
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) >= SWIPE_THRESHOLD) {
+      if (deltaY > 0 && onSwipeUp) {
+        onSwipeUp();
+      }
+      return;
+    }
+
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD || count < 2) return;
+    if (deltaX > 0) next();
     else prev();
   }
 

@@ -6,39 +6,88 @@ import BrandsCarousel from '../components/BrandsCarousel';
 import ProjectCards from '../components/ProjectCards';
 import ContactSection from '../components/ContactSection';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getProjects, getBrands } from '../services/api';
+import { getProjects, getBrands, getProfiles, getMedia } from '../services/api';
+
+function toList(data) {
+  if (Array.isArray(data)) return data;
+  return data?.results ?? [];
+}
+
+function errorMessage(reason, fallback) {
+  return reason?.response?.data?.detail || reason?.message || fallback;
+}
+
+// El backend no garantiza el orden de /media/, así que no se puede asumir que el
+// primer elemento de un proyecto es su portada. Se prioriza el tipo `image` y se
+// usa la extensión del archivo sólo como red de seguridad para el resto.
+const IMAGE_FILE_RE = /\.(avif|webp|jpe?g|png|gif|bmp|svg)(\?.*)?$/i;
+
+function buildCovers(items) {
+  const byType = {};
+  const byExtension = {};
+
+  for (const item of items) {
+    const projectId = item?.project;
+    const file = item?.file;
+    if (projectId == null || !file) continue;
+
+    if (item.media_type === 'image') {
+      if (!byType[projectId]) byType[projectId] = file;
+    } else if (!byType[projectId] && !byExtension[projectId] && IMAGE_FILE_RE.test(file)) {
+      byExtension[projectId] = file;
+    }
+  }
+
+  return { ...byExtension, ...byType };
+}
 
 export default function Home() {
   const [projects, setProjects] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [covers, setCovers] = useState({});
   const [loading, setLoading] = useState(true);
   const [projectsError, setProjectsError] = useState(null);
   const [brandsError, setBrandsError] = useState(null);
+  const [teamError, setTeamError] = useState(null);
+  const [mediaError, setMediaError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const [projectsRes, brandsRes] = await Promise.allSettled([getProjects(), getBrands()]);
+      const [projectsRes, brandsRes, profilesRes, mediaRes] = await Promise.allSettled([
+        getProjects(),
+        getBrands(),
+        getProfiles(),
+        getMedia(),
+      ]);
 
       if (cancelled) return;
 
       if (projectsRes.status === 'fulfilled') {
-        const data = projectsRes.value.data;
-        setProjects(Array.isArray(data) ? data : (data.results ?? []));
+        setProjects(toList(projectsRes.value.data));
       } else {
-        const msg = projectsRes.reason?.response?.data?.detail || projectsRes.reason?.message || 'Error al cargar proyectos.';
-        setProjectsError(msg);
+        setProjectsError(errorMessage(projectsRes.reason, 'Error al cargar proyectos.'));
       }
 
       if (brandsRes.status === 'fulfilled') {
-        const data = brandsRes.value.data;
-        setBrands(Array.isArray(data) ? data : (data.results ?? []));
+        setBrands(toList(brandsRes.value.data));
       } else {
-        const msg = brandsRes.reason?.response?.data?.detail || brandsRes.reason?.message || 'Error al cargar marcas.';
-        setBrandsError(msg);
+        setBrandsError(errorMessage(brandsRes.reason, 'Error al cargar marcas.'));
       }
 
+      if (profilesRes.status === 'fulfilled') {
+        setProfiles(toList(profilesRes.value.data));
+      } else {
+        setTeamError(errorMessage(profilesRes.reason, 'Error al cargar el equipo.'));
+      }
+
+      if (mediaRes.status === 'fulfilled') {
+        setCovers(buildCovers(toList(mediaRes.value.data)));
+      } else {
+        setMediaError(errorMessage(mediaRes.reason, 'Error al cargar las imágenes de los proyectos.'));
+      }
 
       setLoading(false);
     }
@@ -55,9 +104,9 @@ export default function Home() {
     <>
       <Hero />
       <About />
-      <Team />
+      <Team profiles={profiles} error={teamError} />
       <BrandsCarousel brands={brands} error={brandsError} />
-      <ProjectCards projects={projects} error={projectsError} />
+      <ProjectCards projects={projects} covers={covers} error={projectsError} mediaError={mediaError} />
       <ContactSection title="Contanos tu proyecto" />
     </>
   );

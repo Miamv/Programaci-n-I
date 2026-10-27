@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 api.interceptors.request.use((config) => {
@@ -12,6 +17,74 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function clearSession() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('auth_user');
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+  }
+}
+
+// Single-flight: varias peticiones 401 simultáneas comparten la MISMA promesa de
+// refresh, así no se disparan refresh concurrentes (y un fallo dispara un único logout).
+let refreshPromise = null;
+
+function refreshAccessToken() {
+  if (!refreshPromise) {
+    const storedRefresh = localStorage.getItem('refresh_token');
+
+    if (!storedRefresh) {
+      clearSession();
+      return Promise.reject(new Error('No hay refresh token disponible.'));
+    }
+
+    // No hay recursión: /auth/refresh/ está excluido del reintento en el interceptor.
+    refreshPromise = refreshToken(storedRefresh)
+      .then((res) => {
+        const newAccessToken = res.data.access;
+        localStorage.setItem('access_token', newAccessToken);
+        return newAccessToken;
+      })
+      .catch((refreshErr) => {
+        clearSession();
+        throw refreshErr;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Si recibimos 401 y no es login ni refresh, intentamos refrescar el token
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login/') &&
+      !originalRequest.url?.includes('/auth/register/') &&
+      !originalRequest.url?.includes('/auth/refresh/')
+    ) {
+      originalRequest._retry = true;
+
+      // Si el refresh falla, la promesa rechaza y el error original se descarta:
+      // clearSession() ya emitió auth:logout para resincronizar el contexto.
+      const newAccessToken = await refreshAccessToken();
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      return api(originalRequest);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export function getProjects() {
   return api.get('/projects/');
 }
@@ -20,8 +93,21 @@ export function getProject(id) {
   return api.get(`/projects/${id}/`);
 }
 
+export function getApiOrigin() {
+  return API_BASE_URL.replace(/\/api\/?$/, '');
+}
+
+export function resolveMediaUrl(url) {
+  if (!url) return null;
+  if (/^(https?:\/\/|data:|blob:)/i.test(url)) return url;
+  const origin = getApiOrigin();
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${origin}${path}`;
+}
+
 export function getMedia(projectId) {
-  return api.get('/media/', { params: { project: projectId } });
+  const params = projectId === undefined || projectId === null ? undefined : { project: projectId };
+  return params ? api.get('/media/', { params }) : api.get('/media/');
 }
 
 export function getProfiles() {
@@ -42,6 +128,18 @@ export function login(credentials) {
 
 export function register(data) {
   return api.post('/auth/register/', data);
+}
+
+export function getProfile() {
+  return api.get('/auth/profile/');
+}
+
+export function refreshToken(refresh) {
+  return api.post('/auth/refresh/', { refresh });
+}
+
+export function logout(refresh) {
+  return api.post('/auth/logout/', { refresh });
 }
 
 export default api;

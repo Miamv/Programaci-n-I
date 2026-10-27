@@ -1,4 +1,4 @@
-import { teamMembers } from '../content/about';
+import { resolveMediaUrl } from '../services/api';
 
 function AvatarPlaceholder() {
   return (
@@ -25,22 +25,43 @@ function AvatarPlaceholder() {
   );
 }
 
-export default function Team() {
+export default function Team({ profiles, error }) {
+  const members = Array.isArray(profiles) ? profiles : [];
+  const hasMembers = members.length > 0;
+
   return (
     <section id="equipo" className="vertice-team">
       <div className="container">
         <h3 className="vertice-team__title">Nuestro equipo</h3>
-        <div className="vertice-team__grid">
-          {teamMembers.map((member) => (
-            <div key={member.id} className="vertice-team__member">
-              <div className="vertice-team__avatar">
-                <AvatarPlaceholder />
-              </div>
-              <span className="vertice-team__name">{member.name}</span>
-              <span className="vertice-team__role">{member.role}</span>
-            </div>
-          ))}
-        </div>
+        {!hasMembers ? (
+          <p className="vertice-team__empty">
+            {error ? `No se pudo cargar el equipo. ${error}` : 'Aún no hay miembros del equipo para mostrar.'}
+          </p>
+        ) : (
+          <div className="vertice-team__grid">
+            {members.map((member) => {
+              const avatar = resolveMediaUrl(member.avatar);
+              return (
+                <div key={member.id} className="vertice-team__member">
+                  <div className="vertice-team__avatar">
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt={member.name}
+                        loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <AvatarPlaceholder />
+                    )}
+                  </div>
+                  <span className="vertice-team__name">{member.name}</span>
+                  <span className="vertice-team__role">{member.specialty || 'Equipo'}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
