@@ -17,9 +17,6 @@ function errorMessage(reason, fallback) {
   return reason?.response?.data?.detail || reason?.message || fallback;
 }
 
-// El backend no garantiza el orden de /media/, así que no se puede asumir que el
-// primer elemento de un proyecto es su portada. Se prioriza el tipo `image` y se
-// usa la extensión del archivo sólo como red de seguridad para el resto.
 const IMAGE_FILE_RE = /\.(avif|webp|jpe?g|png|gif|bmp|svg)(\?.*)?$/i;
 
 function buildCovers(items) {
@@ -31,7 +28,7 @@ function buildCovers(items) {
     const file = item?.file;
     if (projectId == null || !file) continue;
 
-    if (item.media_type === 'image') {
+    if (item.media_type === 'image' || item.media_type === 'render') {
       if (!byType[projectId]) byType[projectId] = file;
     } else if (!byType[projectId] && !byExtension[projectId] && IMAGE_FILE_RE.test(file)) {
       byExtension[projectId] = file;
@@ -102,7 +99,7 @@ export default function Home() {
 
   return (
     <>
-      <Hero />
+      <Hero profile={profiles[0]} />
       <About />
       <Team profiles={profiles} error={teamError} />
       <BrandsCarousel brands={brands} error={brandsError} />

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import studio from '../config/studio';
+import { resolveMediaUrl } from '../services/api';
 
 function VerticeMark() {
   return (
@@ -11,11 +13,21 @@ function VerticeMark() {
   );
 }
 
-export default function Hero() {
+export default function Hero({ profile }) {
+  const [brokenMedia, setBrokenMedia] = useState(false);
+  const avatarUrl = resolveMediaUrl(profile?.avatar);
+  const heroImage = (!brokenMedia && avatarUrl) ? avatarUrl : studio.heroImage;
+  const studioTitle = profile?.name || studio.name || 'VÉRTICE';
+  const studioSubtitle = profile?.specialty || studio.tagline || 'ESTUDIO DE DISEÑO INDUSTRIAL';
+
   return (
     <section id="inicio" className="vertice-hero">
       <div className="vertice-hero__media" aria-hidden="true">
-        <img src={studio.heroImage} alt="" />
+        <img
+          src={heroImage}
+          alt=""
+          onError={() => setBrokenMedia(true)}
+        />
         <span className="vertice-hero__wash" />
       </div>
 
@@ -25,8 +37,8 @@ export default function Hero() {
             <VerticeMark />
           </span>
           <div className="vertice-hero__titles">
-            <h1 className="vertice-hero__title">VÉRTICE</h1>
-            <p className="vertice-hero__subtitle">ESTUDIO DE DISEÑO INDUSTRIAL</p>
+            <h1 className="vertice-hero__title">{studioTitle.toUpperCase()}</h1>
+            <p className="vertice-hero__subtitle">{studioSubtitle.toUpperCase()}</p>
           </div>
         </div>
 
