@@ -1,18 +1,49 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import User, Brand, ProfessionalProfile, Project, Media, Contact
+
+
+class CustomUserCreationForm(UserCreationForm):
+    email = forms.EmailField(
+        required=True,
+        help_text='Requerido. Dirección de correo electrónico única para el usuario.',
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ('username', 'email', 'role')
+
+
+class CustomUserChangeForm(UserChangeForm):
+    email = forms.EmailField(
+        required=True,
+        help_text='Requerido. Dirección de correo electrónico única para el usuario.',
+    )
+
+    class Meta(UserChangeForm.Meta):
+        model = User
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
+    form = CustomUserChangeForm
+    add_form = CustomUserCreationForm
     list_display = ('username', 'email', 'role', 'is_active')
     list_filter = ('role', 'is_active', 'is_staff', 'is_superuser')
     search_fields = ('username', 'email')
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Rol', {'fields': ('role',)}),
     )
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ('Rol', {'fields': ('role',)}),
+    add_fieldsets = (
+        (
+            None,
+            {
+                'classes': ('wide',),
+                'fields': ('username', 'email', 'role', 'password1', 'password2'),
+            },
+        ),
     )
 
 
