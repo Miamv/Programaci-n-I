@@ -48,6 +48,7 @@ export default function Home() {
   const [brandsError, setBrandsError] = useState(null);
   const [teamError, setTeamError] = useState(null);
   const [mediaError, setMediaError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +94,16 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
+
+  function handleRetry() {
+    setLoading(true);
+    setProjectsError(null);
+    setBrandsError(null);
+    setTeamError(null);
+    setMediaError(null);
+    setReloadKey((k) => k + 1);
+  }
 
   if (loading) return <LoadingSpinner />;
 
@@ -103,7 +113,13 @@ export default function Home() {
       <About />
       <Team profiles={profiles} error={teamError} />
       <BrandsCarousel brands={brands} error={brandsError} />
-      <ProjectCards projects={projects} covers={covers} error={projectsError} mediaError={mediaError} />
+      <ProjectCards
+        projects={projects}
+        covers={covers}
+        error={projectsError}
+        mediaError={mediaError}
+        onRetry={handleRetry}
+      />
       <ContactSection title="Contanos tu proyecto" />
     </>
   );
