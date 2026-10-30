@@ -12,6 +12,7 @@ export default function Navbar() {
   const location = useLocation();
 
   const roleLabel = user?.role ?? '';
+  const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
 
   // Cierra el menú al cambiar de usuario o de ruta (actualización en fase de
   // render, sin efectos en cascada).
@@ -100,50 +101,75 @@ export default function Navbar() {
                 </li>
               ))}
 
+              {isAdminOrOwner && (
+                <li className="nav-item ms-lg-2">
+                  <Link to="/admin" className="nav-link fw-semibold" style={{ color: 'var(--color-ink)' }}>
+                    Admin
+                  </Link>
+                </li>
+              )}
+
               {user ? (
-                <>
-                  <li
-                    className="nav-item d-flex align-items-center ms-lg-3 my-2 my-lg-0 vertice-userbox"
-                    ref={menuRef}
+                <li
+                  className="nav-item d-flex align-items-center ms-lg-3 my-2 my-lg-0 vertice-userbox"
+                  ref={menuRef}
+                >
+                  <button
+                    type="button"
+                    className="vertice-navbar__user vertice-userbox__btn"
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    aria-label="Cuenta de usuario"
+                    title="Cuenta de usuario"
+                    onClick={() => setMenuOpen((v) => !v)}
                   >
-                    <button
-                      type="button"
-                      className="vertice-navbar__user vertice-userbox__btn"
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpen}
-                      aria-label="Cuenta de usuario"
-                      title="Cuenta de usuario"
-                      onClick={() => setMenuOpen((v) => !v)}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
-                        <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                    <span className="nav-link px-0 ms-2 text-capitalize fw-semibold">
-                      {roleLabel}
-                    </span>
-                    {menuOpen && (
-                      <div className="vertice-userbox__menu" role="menu">
-                        <div className="vertice-userbox__meta">
-                          <div className="vertice-userbox__name text-capitalize">{user.username}</div>
-                          {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
-                        </div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="nav-link bg-transparent border-0 px-0 ms-2 text-capitalize fw-semibold"
+                    style={{ color: 'var(--color-ink)', cursor: 'pointer' }}
+                    onClick={() => setMenuOpen((v) => !v)}
+                    aria-label={`Rol de usuario: ${roleLabel}`}
+                  >
+                    {roleLabel}
+                  </button>
+                  {menuOpen && (
+                    <div className="vertice-userbox__menu" role="menu">
+                      <div className="vertice-userbox__meta">
+                        <div className="vertice-userbox__name text-capitalize">{user.username}</div>
+                        {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
                       </div>
-                    )}
-                  </li>
-                  <li className="nav-item ms-lg-2">
-                    <button
-                      type="button"
-                      className="btn btn-outline-dark btn-sm rounded-pill px-3 vertice-userbox__logout"
-                      onClick={handleLogout}
-                    >
-                      Cerrar sesión
-                    </button>
-                  </li>
-                </>
+                      {isAdminOrOwner && (
+                        <>
+                          <div className="vertice-userbox__divider" aria-hidden="true" />
+                          <Link
+                            to="/admin"
+                            className="vertice-userbox__item"
+                            role="menuitem"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            Panel de Administración
+                          </Link>
+                        </>
+                      )}
+                      <div className="vertice-userbox__divider" aria-hidden="true" />
+                      <button
+                        type="button"
+                        className="vertice-userbox__item text-danger"
+                        role="menuitem"
+                        onClick={handleLogout}
+                      >
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  )}
+                </li>
               ) : (
-                <li className="nav-item ms-lg-2 vertice-userbox" ref={menuRef}>
+                <li className="nav-item ms-lg-3 my-2 my-lg-0 vertice-userbox" ref={menuRef}>
                   <button
                     type="button"
                     className="vertice-navbar__user vertice-userbox__btn"

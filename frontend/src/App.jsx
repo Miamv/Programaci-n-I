@@ -4,6 +4,9 @@ import Home from './views/Home';
 import ProjectDetail from './views/ProjectDetail';
 import Login from './views/Login';
 import Register from './views/Register';
+import AdminRoute from './components/AdminRoute';
+import AdminDashboard from './views/AdminDashboard';
+import ProjectForm from './views/ProjectForm';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -12,12 +15,21 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            {/* Portfolio público por decisión arquitectónica: todas las rutas son públicas y no llevan guards de autenticación. */}
+            {/* Rutas Públicas */}
             <Route index element={<Home />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Navigate to="/registro" replace />} />
             <Route path="registro" element={<Register />} />
+
+            {/* Rutas de Administración Protegidas por Rol (ADMIN / OWNER) */}
+            <Route element={<AdminRoute />}>
+              <Route path="admin" element={<AdminDashboard />} />
+              <Route path="admin/proyectos" element={<AdminDashboard />} />
+              <Route path="admin/proyectos/nuevo" element={<ProjectForm />} />
+              <Route path="admin/proyectos/:id/editar" element={<ProjectForm />} />
+            </Route>
           </Route>
+
           {/* Vista inmersiva: pantalla completa, sin Navbar/Footer ni scroll de página */}
           <Route path="proyecto/:id" element={<ProjectDetail />} />
         </Routes>
