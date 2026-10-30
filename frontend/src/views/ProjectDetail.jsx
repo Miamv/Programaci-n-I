@@ -17,6 +17,8 @@ export default function ProjectDetail() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [is404, setIs404] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [mode, setMode] = useState('renders');
   const [lastVisualMode, setLastVisualMode] = useState('renders');
@@ -42,26 +44,32 @@ export default function ProjectDetail() {
         const data = res.data;
         let list = Array.isArray(data.media) ? data.media : [];
 
-        // Si el proyecto no trae media anidada, intentamos consultar el endpoint directo
+        // Si el proyecto no trae media anidada, consultamos el endpoint /media/?project=<id>
         if (list.length === 0) {
           try {
             const mRes = await getMedia(id);
             const mData = Array.isArray(mRes.data) ? mRes.data : (mRes.data?.results ?? []);
             if (mData.length > 0) list = mData;
           } catch {
-            // Continuar con la información base del proyecto
+            // Continuar con los datos base del proyecto
           }
         }
 
         if (!cancelled) {
           setProject({ ...data, mediaList: list });
+          setError(null);
+          setIs404(false);
         }
       } catch (err) {
         if (!cancelled) {
+          const status = err?.response?.status;
+          setIs404(status === 404);
           setError(
-            err?.response?.data?.detail ||
-            err?.message ||
-            'No se pudo cargar el proyecto solicitado.'
+            status === 404
+              ? 'El proyecto que estás buscando no existe o fue dado de baja.'
+              : err?.response?.data?.detail ||
+                err?.message ||
+                'No se pudo conectar con el servidor para obtener los datos del proyecto.'
           );
         }
       } finally {
@@ -76,7 +84,7 @@ export default function ProjectDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   const projectTitle = project?.title || project?.titulo || 'Proyecto';
   const projectCategory = project?.category || project?.categoria || 'Arquitectura';
@@ -87,9 +95,10 @@ export default function ProjectDetail() {
     return project?.mediaList || project?.media || [];
   }, [project]);
 
+  // Renders y fotos generales (excluyendo planos técnicos explícitos)
   const renderFiles = useMemo(() => {
     return mediaList
-      .filter((m) => m.media_type === 'render' || m.media_type === 'image')
+      .filter((m) => m.media_type === 'render' || (m.media_type === 'image' && !m.plan_type))
       .map((m) => resolveMediaUrl(m.file || m.url))
       .filter(Boolean);
   }, [mediaList]);
@@ -99,6 +108,7 @@ export default function ProjectDetail() {
     return [generatePlanoPlaceholder(projectTitle, 'Render preliminar')];
   }, [renderFiles, projectTitle]);
 
+  // Colección de planos por categoría técnica
   const planosMap = useMemo(() => {
     const map = {};
     for (const key of PLAN_KEYS) {
@@ -176,17 +186,7 @@ export default function ProjectDetail() {
 
   if (loading) {
     return (
-      <div
-        className="pv pv--loading"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: '#0F1B2A',
-          color: '#fff',
-        }}
-      >
+      <div className="pv pv--loading">
         <LoadingSpinner />
       </div>
     );
@@ -194,31 +194,38 @@ export default function ProjectDetail() {
 
   if (error || !normalizedProject) {
     return (
-      <div
-        className="pv pv--error"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: '#0F1B2A',
-          color: '#fff',
-          textAlign: 'center',
-          padding: '1.5rem',
-        }}
-      >
-        <h2 style={{ marginBottom: '1rem', fontWeight: 500 }}>No se pudo cargar el proyecto</h2>
-        <p style={{ opacity: 0.7, marginBottom: '1.5rem', maxWidth: '420px' }}>
-          {error || 'El proyecto solicitado no fue encontrado o no está disponible.'}
-        </p>
-        <button
-          type="button"
-          className="vertice-hero__cta"
-          onClick={() => navigate('/')}
-        >
-          Volver a la Home
-        </button>
+      <div className="pv pv--error">
+        <div className="pv-error-card">
+          <span className="pv-error-badge">{is404 ? '404' : 'ERROR'}</span>
+          <h2 className="pv-error-title">
+            {is404 ? 'Proyecto no encontrado' : 'No se pudo cargar el proyecto'}
+          </h2>
+          <p className="pv-error-desc">
+            {error || 'El proyecto solicitado no está disponible.'}
+          </p>
+          <div className="pv-error-actions">
+            {!is404 && (
+              <button
+                type="button"
+                className="pv-btn pv-btn--outline"
+                onClick={() => {
+                  setLoading(true);
+                  setError(null);
+                  setReloadKey((k) => k + 1);
+                }}
+              >
+                Reintentar
+              </button>
+            )}
+            <button
+              type="button"
+              className="pv-btn pv-btn--primary"
+              onClick={() => navigate('/')}
+            >
+              Volver a la Home
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
