@@ -93,7 +93,11 @@ class CanManageContact(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Solo ADMIN y OWNER gestionan consultas.
+        # Consultar listado o detalle está permitido para cualquier usuario autenticado
+        if view.action in ['list', 'retrieve']:
+            return True
+
+        # Modificar o eliminar solo ADMIN y OWNER
         return request.user.role in [
             User.RoleChoices.ADMIN,
             User.RoleChoices.OWNER,
@@ -105,7 +109,11 @@ class CanManageContact(permissions.BasePermission):
             return True
 
         # OWNER solo accede a contactos de sus propios perfiles.
-        return obj.profile.users.filter(id=request.user.id).exists()
+        if request.user.role == User.RoleChoices.OWNER:
+            return obj.profile.users.filter(id=request.user.id).exists()
+
+        # Usuario autenticado (VIEWER/COLLABORATOR) accede a su propia consulta por email
+        return bool(request.user.email and obj.email.lower() == request.user.email.lower())
 
 
 class CanManageBrand(permissions.BasePermission):

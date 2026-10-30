@@ -86,6 +86,8 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class ContactSerializer(serializers.ModelSerializer):
+    profile_name = serializers.ReadOnlyField(source='profile.name')
+
     class Meta:
         model = Contact
         fields = '__all__'

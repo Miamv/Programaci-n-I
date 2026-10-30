@@ -143,6 +143,23 @@ export default function Navbar() {
                         <div className="vertice-userbox__name text-capitalize">{user.username}</div>
                         {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
                       </div>
+                      <div className="vertice-userbox__divider" aria-hidden="true" />
+                      <Link
+                        to="/perfil"
+                        className="vertice-userbox__item"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Mi Perfil
+                      </Link>
+                      <Link
+                        to="/solicitudes"
+                        className="vertice-userbox__item"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Mis Solicitudes
+                      </Link>
                       {isAdminOrOwner && (
                         <>
                           <div className="vertice-userbox__divider" aria-hidden="true" />

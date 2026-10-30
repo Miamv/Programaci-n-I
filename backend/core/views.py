@@ -79,4 +79,10 @@ class ContactViewSet(viewsets.ModelViewSet):
             return Contact.objects.all()
 
         # OWNER solo puede ver contactos de sus propios perfiles.
-        return Contact.objects.filter(profile__users=user)
+        if user.role == user.RoleChoices.OWNER:
+            return Contact.objects.filter(profile__users=user)
+
+        # Para usuarios VIEWER o COLLABORATOR: consultar solicitudes enviadas con su email
+        if user.email:
+            return Contact.objects.filter(email__iexact=user.email)
+        return Contact.objects.none()

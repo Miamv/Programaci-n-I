@@ -130,8 +130,16 @@ export function getBrands() {
   return api.get('/brands/');
 }
 
+export function getContacts() {
+  return api.get('/contacts/');
+}
+
 export function sendContact(data) {
   return api.post('/contacts/', data);
+}
+
+export function deleteContact(id) {
+  return api.delete(`/contacts/${id}/`);
 }
 
 export function login(credentials) {
@@ -144,6 +152,10 @@ export function register(data) {
 
 export function getProfile() {
   return api.get('/auth/profile/');
+}
+
+export function updateProfile(data) {
+  return api.patch('/auth/profile/', data);
 }
 
 export function refreshToken(refresh) {

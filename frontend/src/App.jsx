@@ -4,6 +4,10 @@ import Home from './views/Home';
 import ProjectDetail from './views/ProjectDetail';
 import Login from './views/Login';
 import Register from './views/Register';
+import ProtectedRoute from './components/ProtectedRoute';
+import Profile from './views/Profile';
+import QuoteRequest from './views/QuoteRequest';
+import InquiriesList from './views/InquiriesList';
 import AdminRoute from './components/AdminRoute';
 import AdminDashboard from './views/AdminDashboard';
 import ProjectForm from './views/ProjectForm';
@@ -20,6 +24,13 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Navigate to="/registro" replace />} />
             <Route path="registro" element={<Register />} />
+
+            {/* Rutas Autenticadas Protegidas (Perfil, Solicitudes/Checkout) */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="perfil" element={<Profile />} />
+              <Route path="solicitudes" element={<InquiriesList />} />
+              <Route path="solicitud" element={<QuoteRequest />} />
+            </Route>
 
             {/* Rutas de Administración Protegidas por Rol (ADMIN / OWNER) */}
             <Route element={<AdminRoute />}>
