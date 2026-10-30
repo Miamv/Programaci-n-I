@@ -89,10 +89,14 @@ class Media(models.Model):
 
     PLAN_TYPES = [
         ('planta', 'Planta'),
+        ('plantas', 'Plantas'),
         ('corte', 'Corte'),
+        ('cortes', 'Cortes'),
         ('vista', 'Vista'),
+        ('vistas', 'Vistas'),
         ('planimetria', 'Planimetría'),
         ('detalle', 'Detalle Constructivo'),
+        ('detalle_constructivo', 'Detalle Constructivo'),
     ]
 
     project = models.ForeignKey(
@@ -127,3 +131,34 @@ class Contact(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+
+class StudioAbout(models.Model):
+    title = models.CharField(max_length=200, default='Sobre el Estudio')
+    description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='about/', blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = 'Sección Nosotros'
+        verbose_name_plural = 'Sección Nosotros'
+
+
+class TeamMember(models.Model):
+    full_name = models.CharField(max_length=120)
+    role = models.CharField(max_length=120)
+    avatar = models.ImageField(upload_to='team/', blank=True, null=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Miembro del Equipo'
+        verbose_name_plural = 'Miembros del Equipo'
+
+    def __str__(self):
+        return f'{self.full_name} ({self.role})'

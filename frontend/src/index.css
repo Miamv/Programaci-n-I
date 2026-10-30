@@ -271,25 +271,33 @@ a {
 }
 
 .vertice-hero__cta {
-  margin-top: 1.35rem;
+  margin-top: 1.5rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.62rem 1.15rem;
+  gap: 0.5rem;
+  padding: 0.72rem 1.6rem;
   border-radius: 999px;
-  background: rgba(15, 27, 42, 0.92);
+  background: rgba(15, 27, 42, 0.45);
   color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   text-decoration: none;
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
-  transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
-  box-shadow: 0 8px 18px rgba(15, 27, 42, 0.14);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vertice-hero__cta:hover {
-  background: var(--color-ink);
-  color: #fff;
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-ink);
+  border-color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
 }
 
 /* About */

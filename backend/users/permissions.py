@@ -131,3 +131,19 @@ class CanManageBrand(permissions.BasePermission):
             User.RoleChoices.ADMIN,
             User.RoleChoices.OWNER,
         ]
+
+
+class CanManageStudioContent(permissions.BasePermission):
+    """
+    ADMIN y OWNER pueden gestionar contenido institucional del estudio (Nosotros, Equipo).
+    Cualquiera puede listar o consultar públicamente.
+    """
+    def has_permission(self, request, view):
+        if view.action in ['list', 'retrieve']:
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [
+            User.RoleChoices.ADMIN,
+            User.RoleChoices.OWNER,
+        ]

@@ -3,11 +3,26 @@ export const PLAN_KEYS = ['planimetria', 'planta', 'cortes', 'vistas', 'detalle'
 export const PLAN_LABELS = {
   planimetria: 'Planimetría',
   planta: 'Planta',
+  plantas: 'Planta',
+  corte: 'Cortes',
   cortes: 'Cortes',
+  vista: 'Vistas',
   vistas: 'Vistas',
   detalle: 'Detalle',
+  detalle_constructivo: 'Detalle',
   detalleConstructivo: 'Detalle',
 };
+
+export function normalizePlanType(type) {
+  if (!type) return null;
+  const t = String(type).trim().toLowerCase();
+  if (t === 'corte' || t === 'cortes') return 'cortes';
+  if (t === 'vista' || t === 'vistas') return 'vistas';
+  if (t === 'planta' || t === 'plantas') return 'planta';
+  if (t === 'planimetria' || t === 'planimetría') return 'planimetria';
+  if (t === 'detalle' || t === 'detalle constructivo' || t === 'detalle_constructivo') return 'detalle';
+  return t;
+}
 
 export function generatePlanoPlaceholder(label, sub = 'Esc 1:50') {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">`

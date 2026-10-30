@@ -8,7 +8,7 @@ import ProjectSheet from '../components/ProjectSheet';
 import ProjectLocation from '../components/ProjectLocation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getProject, getMedia, resolveMediaUrl } from '../services/api';
-import { PLAN_KEYS, PLAN_LABELS, generatePlanoPlaceholder } from '../config/plans';
+import { PLAN_KEYS, generatePlanoPlaceholder, normalizePlanType } from '../config/plans';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -108,31 +108,46 @@ export default function ProjectDetail() {
     return [generatePlanoPlaceholder(projectTitle, 'Render preliminar')];
   }, [renderFiles, projectTitle]);
 
-  // Colección de planos por categoría técnica
+  // Mapeo dinámico de planos técnicos persistidos en la base de datos
   const planosMap = useMemo(() => {
     const map = {};
-    for (const key of PLAN_KEYS) {
-      const match = mediaList.filter(
-        (m) => m.plan_type === key || (m.media_type === 'image' && m.zone === key)
-      );
-      if (match.length > 0) {
-        map[key] = match.map((m) => resolveMediaUrl(m.file || m.url)).filter(Boolean);
-      } else {
-        map[key] = [
-          generatePlanoPlaceholder(
-            PLAN_LABELS[key] || key.toUpperCase(),
-            `${projectTitle} · Esc 1:50`
-          ),
-        ];
+    for (const m of mediaList) {
+      const rawType = m.plan_type || (m.media_type === 'image' && m.zone ? m.zone : null);
+      const normalized = normalizePlanType(rawType);
+      if (!normalized) continue;
+
+      const url = resolveMediaUrl(m.file || m.url);
+      if (!url) continue;
+
+      if (!map[normalized]) {
+        map[normalized] = [];
       }
+      map[normalized].push(url);
     }
     return map;
-  }, [mediaList, projectTitle]);
+  }, [mediaList]);
+
+  // Pestañas de planos que realmente poseen archivos cargados para este proyecto
+  const availablePlanKeys = useMemo(() => {
+    return PLAN_KEYS.filter((key) => Array.isArray(planosMap[key]) && planosMap[key].length > 0);
+  }, [planosMap]);
+
+  // Si el plano activo no está entre las pestañas disponibles, seleccionar la primera disponible
+  const currentPlano = useMemo(() => {
+    if (availablePlanKeys.length === 0) return null;
+    if (availablePlanKeys.includes(plano)) return plano;
+    return availablePlanKeys[0];
+  }, [availablePlanKeys, plano]);
 
   const galleryImages = useMemo(() => {
-    if (mode === 'planos') return planosMap[plano] ?? renders;
+    if (mode === 'planos') {
+      if (currentPlano && planosMap[currentPlano] && planosMap[currentPlano].length > 0) {
+        return planosMap[currentPlano];
+      }
+      return [generatePlanoPlaceholder(projectTitle, 'Sin planos técnicos digitalizados')];
+    }
     return renders;
-  }, [mode, plano, planosMap, renders]);
+  }, [mode, currentPlano, planosMap, renders, projectTitle]);
 
   const normalizedProject = useMemo(() => {
     if (!project) return null;
@@ -150,7 +165,7 @@ export default function ProjectDetail() {
     };
   }, [project, projectTitle, projectCategory, projectSubtitle, projectDescription]);
 
-  const galleryKey = `${mode}:${plano}`;
+  const galleryKey = `${mode}:${currentPlano || plano}`;
 
   function selectDock(key) {
     if (key === 'info') {
@@ -260,8 +275,12 @@ export default function ProjectDetail() {
         {showLocation && <ProjectLocation project={normalizedProject} onSwipeUp={expandSheet} />}
       </div>
 
-      {!sheetExpanded && mode === 'planos' && (
-        <ProjectPlansNav active={plano} onSelect={selectPlano} />
+      {!sheetExpanded && mode === 'planos' && availablePlanKeys.length > 0 && (
+        <ProjectPlansNav
+          active={currentPlano || plano}
+          onSelect={selectPlano}
+          availableKeys={availablePlanKeys}
+        />
       )}
 
       {!sheetExpanded && <ProjectDock mode={mode} onSelect={selectDock} />}

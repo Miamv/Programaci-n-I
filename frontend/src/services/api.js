@@ -130,6 +130,54 @@ export function getBrands() {
   return api.get('/brands/');
 }
 
+export function getAbout() {
+  return api.get('/about/');
+}
+
+export function createAbout(data) {
+  if (data instanceof FormData) {
+    return api.post('/about/', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post('/about/', data);
+}
+
+export function updateAbout(id, data) {
+  if (data instanceof FormData) {
+    return api.patch(`/about/${id}/`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.patch(`/about/${id}/`, data);
+}
+
+export function getTeam() {
+  return api.get('/team/');
+}
+
+export function createTeamMember(data) {
+  if (data instanceof FormData) {
+    return api.post('/team/', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post('/team/', data);
+}
+
+export function updateTeamMember(id, data) {
+  if (data instanceof FormData) {
+    return api.patch(`/team/${id}/`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.patch(`/team/${id}/`, data);
+}
+
+export function deleteTeamMember(id) {
+  return api.delete(`/team/${id}/`);
+}
+
 export function getContacts() {
   return api.get('/contacts/');
 }

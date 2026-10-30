@@ -6,7 +6,7 @@ import BrandsCarousel from '../components/BrandsCarousel';
 import ProjectCards from '../components/ProjectCards';
 import ContactSection from '../components/ContactSection';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getProjects, getBrands, getProfiles, getMedia } from '../services/api';
+import { getProjects, getBrands, getProfiles, getMedia, getAbout, getTeam } from '../services/api';
 
 function toList(data) {
   if (Array.isArray(data)) return data;
@@ -43,6 +43,8 @@ export default function Home() {
   const [brands, setBrands] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [covers, setCovers] = useState({});
+  const [aboutData, setAboutData] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [projectsError, setProjectsError] = useState(null);
   const [brandsError, setBrandsError] = useState(null);
@@ -54,11 +56,13 @@ export default function Home() {
     let cancelled = false;
 
     async function load() {
-      const [projectsRes, brandsRes, profilesRes, mediaRes] = await Promise.allSettled([
+      const [projectsRes, brandsRes, profilesRes, mediaRes, aboutRes, teamRes] = await Promise.allSettled([
         getProjects(),
         getBrands(),
         getProfiles(),
         getMedia(),
+        getAbout(),
+        getTeam(),
       ]);
 
       if (cancelled) return;
@@ -87,6 +91,15 @@ export default function Home() {
         setMediaError(errorMessage(mediaRes.reason, 'Error al cargar las imágenes de los proyectos.'));
       }
 
+      if (aboutRes.status === 'fulfilled') {
+        const aList = toList(aboutRes.value.data);
+        setAboutData(aList[0] || null);
+      }
+
+      if (teamRes.status === 'fulfilled') {
+        setTeamMembers(toList(teamRes.value.data));
+      }
+
       setLoading(false);
     }
 
@@ -110,8 +123,8 @@ export default function Home() {
   return (
     <>
       <Hero profile={profiles[0]} />
-      <About />
-      <Team profiles={profiles} error={teamError} />
+      <About data={aboutData} />
+      <Team members={teamMembers} profiles={profiles} error={teamError} />
       <BrandsCarousel brands={brands} error={brandsError} />
       <ProjectCards
         projects={projects}

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Brand, ProfessionalProfile, Project, Media, Contact
+from .models import Brand, ProfessionalProfile, Project, Media, Contact, StudioAbout, TeamMember
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -91,3 +91,33 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
         fields = '__all__'
+
+
+class StudioAboutSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudioAbout
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if instance.image:
+            data['image'] = request.build_absolute_uri(instance.image.url) if request else instance.image.url
+        else:
+            data['image'] = None
+        return data
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamMember
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if instance.avatar:
+            data['avatar'] = request.build_absolute_uri(instance.avatar.url) if request else instance.avatar.url
+        else:
+            data['avatar'] = None
+        return data

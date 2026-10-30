@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.utils.html import format_html
-from .models import User, Brand, ProfessionalProfile, Project, Media, Contact
+from .models import User, Brand, ProfessionalProfile, Project, Media, Contact, StudioAbout, TeamMember
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -108,3 +108,26 @@ class ContactAdmin(admin.ModelAdmin):
     list_display = ('name', 'profile', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('name', 'email')
+
+
+@admin.register(StudioAbout)
+class StudioAboutAdmin(admin.ModelAdmin):
+    list_display = ('title', 'updated_at')
+    search_fields = ('title', 'description')
+
+
+@admin.register(TeamMember)
+class TeamMemberAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'role', 'order', 'preview')
+    list_editable = ('order',)
+    search_fields = ('full_name', 'role')
+    readonly_fields = ('preview',)
+
+    def preview(self, instance):
+        if instance.pk and instance.avatar:
+            return format_html(
+                '<img src="{}" style="max-height: 40px; max-width: 40px; border-radius: 50%; object-fit: cover;" alt="preview" />',
+                instance.avatar.url
+            )
+        return "-"
+    preview.short_description = "Avatar"
