@@ -5,7 +5,7 @@ from django.test import TestCase, RequestFactory
 
 from .admin import CustomUserCreationForm, UserAdmin, ProjectAdmin, MediaInline
 from .models import User, ProfessionalProfile, Project, Media
-from .serializers import ProjectSerializer, ProfessionalProfileSerializer
+from .serializers import ProjectSerializer, ProfessionalProfileSerializer, MediaSerializer
 
 User = get_user_model()
 
@@ -112,6 +112,34 @@ class MediaAndProjectSerializerTestCase(TestCase):
         self.assertIn('render1.jpg', data['cover_image'])
         self.assertEqual(data['cover_image'], data['coverImage'])
         self.assertEqual(len(data['media']), 3)
+
+    def test_media_plan_types_normalized(self):
+        expected = [
+            ('planimetria', 'Planimetría'),
+            ('planta', 'Planta'),
+            ('cortes', 'Cortes'),
+            ('vistas', 'Vistas'),
+            ('detalle', 'Detalle'),
+        ]
+        self.assertEqual(Media.PLAN_TYPES, expected)
+
+    def test_media_serializer_allows_file_upload_and_plan_type(self):
+        uploaded = SimpleUploadedFile('corte_a.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
+        request = self.rf.post('/api/media/')
+        serializer = MediaSerializer(
+            data={
+                'project': self.project.id,
+                'file': uploaded,
+                'media_type': 'image',
+                'plan_type': 'cortes',
+            },
+            context={'request': request},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        media_obj = serializer.save()
+        self.assertEqual(media_obj.plan_type, 'cortes')
+        self.assertTrue(bool(media_obj.file))
+        self.assertIn('http://testserver', serializer.data['file'])
 
     def test_project_admin_has_media_inline(self):
         site = AdminSite()
