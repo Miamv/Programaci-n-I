@@ -56,9 +56,10 @@ class BrandAdmin(admin.ModelAdmin):
 
 @admin.register(ProfessionalProfile)
 class ProfessionalProfileAdmin(admin.ModelAdmin):
-    list_display = ('name', 'specialty', 'contact_email', 'created_at')
+    list_display = ('name', 'slug', 'specialty', 'contact_email', 'created_at')
     list_filter = ('created_at',)
-    search_fields = ('name', 'users__username', 'users__email')
+    search_fields = ('name', 'slug', 'users__username', 'users__email')
+    prepopulated_fields = {'slug': ('name',)}
     filter_horizontal = ('users',)
 
 
@@ -81,8 +82,8 @@ class MediaInline(admin.TabularInline):
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'profile', 'category', 'created_at')
-    list_filter = ('category', 'created_at')
-    search_fields = ('title',)
+    list_filter = ('profile', 'category', 'created_at')
+    search_fields = ('title', 'profile__name', 'profile__slug')
     filter_horizontal = ('brands',)
     inlines = [MediaInline]
 
@@ -112,14 +113,16 @@ class ContactAdmin(admin.ModelAdmin):
 
 @admin.register(StudioAbout)
 class StudioAboutAdmin(admin.ModelAdmin):
-    list_display = ('title', 'updated_at')
+    list_display = ('title', 'profile', 'updated_at')
+    list_filter = ('profile',)
     search_fields = ('title', 'description')
 
 
 @admin.register(TeamMember)
 class TeamMemberAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'role', 'order', 'preview')
+    list_display = ('full_name', 'role', 'profile', 'order', 'preview')
     list_editable = ('order',)
+    list_filter = ('profile',)
     search_fields = ('full_name', 'role')
     readonly_fields = ('preview',)
 

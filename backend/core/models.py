@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.text import slugify
 
 
 class Brand(models.Model):
@@ -30,8 +31,18 @@ class User(AbstractUser):
 
 
 class ProfessionalProfile(models.Model):
+    """
+    Representa a un estudio de arquitectura en la plataforma multi-estudio.
+    Cada estudio posee un identificador público único (slug) para su URL.
+    """
     users = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='professional_profiles')
     name = models.CharField(max_length=100)
+    slug = models.SlugField(
+        max_length=100,
+        unique=True,
+        blank=True,
+        help_text='Identificador público único para la URL (ej. vertice, estudio-norte).'
+    )
     description = models.TextField(blank=True)
     specialty = models.CharField(max_length=100, blank=True)
     services = models.TextField(blank=True)
@@ -40,8 +51,19 @@ class ProfessionalProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        if not self.slug and self.name:
+            base_slug = slugify(self.name) or 'estudio'
+            candidate = base_slug
+            counter = 1
+            while ProfessionalProfile.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+                candidate = f'{base_slug}-{counter}'
+                counter += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.name
+        return f'{self.name} ({self.slug})' if self.slug else self.name
 
 
 class Project(models.Model):
@@ -133,8 +155,14 @@ class Contact(models.Model):
         ordering = ['-created_at']
 
 
-
 class StudioAbout(models.Model):
+    profile = models.ForeignKey(
+        ProfessionalProfile,
+        on_delete=models.CASCADE,
+        related_name='about_sections',
+        null=True,
+        blank=True
+    )
     title = models.CharField(max_length=200, default='Sobre el Estudio')
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='about/', blank=True, null=True)
@@ -149,6 +177,13 @@ class StudioAbout(models.Model):
 
 
 class TeamMember(models.Model):
+    profile = models.ForeignKey(
+        ProfessionalProfile,
+        on_delete=models.CASCADE,
+        related_name='team_members',
+        null=True,
+        blank=True
+    )
     full_name = models.CharField(max_length=120)
     role = models.CharField(max_length=120)
     avatar = models.ImageField(upload_to='team/', blank=True, null=True)

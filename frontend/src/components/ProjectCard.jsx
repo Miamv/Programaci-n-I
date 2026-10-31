@@ -15,6 +15,9 @@ export default function ProjectCard({ project, coverUrl }) {
   const showCover = coverImage && !brokenCover;
   const title = project.title || 'Proyecto';
   const category = formatCategory(project.category);
+  const detailPath = project.profile_slug
+    ? `/estudios/${project.profile_slug}/proyecto/${project.id}`
+    : `/proyecto/${project.id}`;
 
   return (
     <article className="vertice-project-card">
@@ -34,7 +37,7 @@ export default function ProjectCard({ project, coverUrl }) {
           {(project.description || 'Proyecto del estudio.').slice(0, 92)}
           {(project.description || '').length > 92 ? '…' : ''}
         </p>
-        <Link to={`/proyecto/${project.id}`} className="vertice-project-card__cta">
+        <Link to={detailPath} className="vertice-project-card__cta">
           Ver detalles
         </Link>
       </div>

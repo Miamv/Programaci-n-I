@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from .models import Brand, ProfessionalProfile, Project, Media, Contact, StudioAbout, TeamMember
@@ -31,23 +32,61 @@ class BrandViewSet(viewsets.ModelViewSet):
 
 
 class ProfessionalProfileViewSet(viewsets.ModelViewSet):
-    queryset = ProfessionalProfile.objects.all()
+    """
+    Gestiona y expone los estudios de arquitectura registrados.
+    Permite búsqueda y consulta por ID o por identificador público (slug).
+    """
+    queryset = ProfessionalProfile.objects.all().prefetch_related('users')
     serializer_class = ProfessionalProfileSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'by_slug']:
             return [AllowAny()]
         return [CanManageProfile()]
 
+    def get_object(self):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_val = self.kwargs.get(lookup_url_kwarg)
+        if lookup_val:
+            if str(lookup_val).isdigit():
+                return get_object_or_404(self.get_queryset(), pk=lookup_val)
+            return get_object_or_404(self.get_queryset(), slug=lookup_val)
+        return super().get_object()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        slug = self.request.query_params.get('slug')
+        if slug:
+            qs = qs.filter(slug=slug)
+        return qs
+
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Project.objects.all().prefetch_related('brands', 'media')
+    """
+    Gestiona los proyectos del portfolio.
+    Permite aislar y filtrar por estudio utilizando ?profile=<id_or_slug> o ?studio=<slug>.
+    """
+    queryset = Project.objects.all().prefetch_related('brands', 'media', 'profile')
     serializer_class = ProjectSerializer
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [CanManageProject()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        profile_param = (
+            self.request.query_params.get('profile') or
+            self.request.query_params.get('studio') or
+            self.request.query_params.get('profile_slug')
+        )
+        if profile_param:
+            if str(profile_param).isdigit():
+                qs = qs.filter(profile_id=profile_param)
+            else:
+                qs = qs.filter(profile__slug=profile_param)
+        return qs
 
 
 class MediaViewSet(viewsets.ModelViewSet):
@@ -106,6 +145,16 @@ class StudioAboutViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         return [CanManageStudioContent()]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        profile_param = self.request.query_params.get('profile') or self.request.query_params.get('studio')
+        if profile_param:
+            if str(profile_param).isdigit():
+                qs = qs.filter(profile_id=profile_param)
+            else:
+                qs = qs.filter(profile__slug=profile_param)
+        return qs
+
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
     queryset = TeamMember.objects.all()
@@ -115,3 +164,13 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [CanManageStudioContent()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        profile_param = self.request.query_params.get('profile') or self.request.query_params.get('studio')
+        if profile_param:
+            if str(profile_param).isdigit():
+                qs = qs.filter(profile_id=profile_param)
+            else:
+                qs = qs.filter(profile__slug=profile_param)
+        return qs

@@ -11,7 +11,7 @@ import { getProject, getMedia, resolveMediaUrl } from '../services/api';
 import { PLAN_KEYS, generatePlanoPlaceholder, normalizePlanType } from '../config/plans';
 
 export default function ProjectDetail() {
-  const { id } = useParams();
+  const { id, slug } = useParams();
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
@@ -19,6 +19,10 @@ export default function ProjectDetail() {
   const [error, setError] = useState(null);
   const [is404, setIs404] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  const backPath = slug
+    ? `/estudios/${slug}`
+    : (project?.profile_slug ? `/estudios/${project.profile_slug}` : '/');
 
   const [mode, setMode] = useState('renders');
   const [lastVisualMode, setLastVisualMode] = useState('renders');
@@ -235,9 +239,9 @@ export default function ProjectDetail() {
             <button
               type="button"
               className="pv-btn pv-btn--primary"
-              onClick={() => navigate('/')}
+              onClick={() => navigate(backPath)}
             >
-              Volver a la Home
+              Volver al Estudio
             </button>
           </div>
         </div>
@@ -269,7 +273,7 @@ export default function ProjectDetail() {
         <ProjectTopBar
           title={normalizedProject.titulo}
           category={normalizedProject.categoria}
-          onBack={() => navigate('/')}
+          onBack={() => navigate(backPath)}
         />
 
         {showLocation && <ProjectLocation project={normalizedProject} onSwipeUp={expandSheet} />}

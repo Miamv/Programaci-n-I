@@ -498,7 +498,7 @@ export default function AdminDashboard() {
                               {project.title}
                             </span>
                             <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                              ID: #{project.id}
+                              ID: #{project.id} {project.profile_name ? ` · Estudio: ${project.profile_name}` : ''}
                             </span>
                           </td>
                           <td>

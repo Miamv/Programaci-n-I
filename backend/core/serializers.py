@@ -56,6 +56,8 @@ class ProjectSerializer(serializers.ModelSerializer):
     media = MediaSerializer(many=True, read_only=True)
     cover_image = serializers.SerializerMethodField()
     coverImage = serializers.SerializerMethodField()
+    profile_slug = serializers.ReadOnlyField(source='profile.slug')
+    profile_name = serializers.ReadOnlyField(source='profile.name')
 
     class Meta:
         model = Project

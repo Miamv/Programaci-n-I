@@ -19,8 +19,10 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            {/* Rutas Públicas */}
+            {/* Rutas Públicas: Catálogo general o Portfolio específico por estudio */}
             <Route index element={<Home />} />
+            <Route path="estudios/:slug" element={<Home />} />
+            <Route path="estudio/:slug" element={<Home />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Navigate to="/registro" replace />} />
             <Route path="registro" element={<Register />} />
@@ -43,6 +45,7 @@ function App() {
 
           {/* Vista inmersiva: pantalla completa, sin Navbar/Footer ni scroll de página */}
           <Route path="proyecto/:id" element={<ProjectDetail />} />
+          <Route path="estudios/:slug/proyecto/:id" element={<ProjectDetail />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

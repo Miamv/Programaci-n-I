@@ -85,8 +85,8 @@ api.interceptors.response.use(
   }
 );
 
-export function getProjects() {
-  return api.get('/projects/');
+export function getProjects(params) {
+  return params ? api.get('/projects/', { params }) : api.get('/projects/');
 }
 
 export function getProject(id) {
@@ -122,16 +122,24 @@ export function getMedia(projectId) {
   return params ? api.get('/media/', { params }) : api.get('/media/');
 }
 
-export function getProfiles() {
-  return api.get('/profiles/');
+export function getProfiles(params) {
+  return params ? api.get('/profiles/', { params }) : api.get('/profiles/');
+}
+
+export function getStudio(slugOrId) {
+  return api.get(`/profiles/${slugOrId}/`);
+}
+
+export function getStudios(params) {
+  return getProfiles(params);
 }
 
 export function getBrands() {
   return api.get('/brands/');
 }
 
-export function getAbout() {
-  return api.get('/about/');
+export function getAbout(params) {
+  return params ? api.get('/about/', { params }) : api.get('/about/');
 }
 
 export function createAbout(data) {
@@ -152,8 +160,8 @@ export function updateAbout(id, data) {
   return api.patch(`/about/${id}/`, data);
 }
 
-export function getTeam() {
-  return api.get('/team/');
+export function getTeam(params) {
+  return params ? api.get('/team/', { params }) : api.get('/team/');
 }
 
 export function createTeamMember(data) {

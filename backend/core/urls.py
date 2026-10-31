@@ -14,6 +14,7 @@ router = DefaultRouter()
 
 router.register(r'brands', BrandViewSet)
 router.register(r'profiles', ProfessionalProfileViewSet)
+router.register(r'studios', ProfessionalProfileViewSet, basename='studio')
 router.register(r'projects', ProjectViewSet)
 router.register(r'media', MediaViewSet)
 router.register(r'contacts', ContactViewSet)
