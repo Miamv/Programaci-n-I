@@ -98,7 +98,7 @@ export default function ProjectDetail() {
   // Renders y fotos generales (excluyendo planos técnicos explícitos)
   const renderFiles = useMemo(() => {
     return mediaList
-      .filter((m) => m.media_type === 'render' || (m.media_type === 'image' && !m.plan_type))
+      .filter((m) => !m.plan_type && (m.media_type === 'render' || m.media_type === 'image'))
       .map((m) => resolveMediaUrl(m.file || m.url))
       .filter(Boolean);
   }, [mediaList]);
@@ -132,22 +132,23 @@ export default function ProjectDetail() {
     return PLAN_KEYS.filter((key) => Array.isArray(planosMap[key]) && planosMap[key].length > 0);
   }, [planosMap]);
 
+  const hasPlanos = availablePlanKeys.length > 0;
+
   // Si el plano activo no está entre las pestañas disponibles, seleccionar la primera disponible
   const currentPlano = useMemo(() => {
-    if (availablePlanKeys.length === 0) return null;
+    if (!hasPlanos) return null;
     if (availablePlanKeys.includes(plano)) return plano;
     return availablePlanKeys[0];
-  }, [availablePlanKeys, plano]);
+  }, [availablePlanKeys, hasPlanos, plano]);
+
+  const activeMode = mode === 'planos' && !hasPlanos ? 'renders' : mode;
 
   const galleryImages = useMemo(() => {
-    if (mode === 'planos') {
-      if (currentPlano && planosMap[currentPlano] && planosMap[currentPlano].length > 0) {
-        return planosMap[currentPlano];
-      }
-      return [generatePlanoPlaceholder(projectTitle, 'Sin planos técnicos digitalizados')];
+    if (activeMode === 'planos' && currentPlano && planosMap[currentPlano]?.length > 0) {
+      return planosMap[currentPlano];
     }
     return renders;
-  }, [mode, currentPlano, planosMap, renders, projectTitle]);
+  }, [activeMode, currentPlano, planosMap, renders]);
 
   const normalizedProject = useMemo(() => {
     if (!project) return null;
@@ -165,9 +166,12 @@ export default function ProjectDetail() {
     };
   }, [project, projectTitle, projectCategory, projectSubtitle, projectDescription]);
 
-  const galleryKey = `${mode}:${currentPlano || plano}`;
+  const galleryKey = `${activeMode}:${currentPlano || plano}`;
 
   function selectDock(key) {
+    if (key === 'planos' && !hasPlanos) {
+      return;
+    }
     if (key === 'info') {
       if (sheet === 'expanded') {
         collapseSheet();
@@ -189,10 +193,12 @@ export default function ProjectDetail() {
 
   function collapseSheet() {
     setSheet('closed');
-    setMode(lastVisualMode || 'renders');
+    const fallbackMode = lastVisualMode === 'planos' && !hasPlanos ? 'renders' : (lastVisualMode || 'renders');
+    setMode(fallbackMode);
   }
 
   function selectPlano(key) {
+    if (!hasPlanos) return;
     setPlano(key);
     setMode('planos');
     setLastVisualMode('planos');
@@ -245,7 +251,7 @@ export default function ProjectDetail() {
     );
   }
 
-  const showLocation = mode === 'ubicacion';
+  const showLocation = activeMode === 'ubicacion';
   const sheetExpanded = sheet === 'expanded';
 
   return (
@@ -261,7 +267,7 @@ export default function ProjectDetail() {
             key={galleryKey}
             images={galleryImages}
             title={normalizedProject.titulo}
-            hint={mode === 'planos' ? 'Zoom / pan · deslizar' : 'Explorar · deslizar'}
+            hint={activeMode === 'planos' ? 'Zoom / pan · deslizar' : 'Explorar · deslizar'}
             onSwipeUp={expandSheet}
           />
         )}
@@ -275,7 +281,7 @@ export default function ProjectDetail() {
         {showLocation && <ProjectLocation project={normalizedProject} onSwipeUp={expandSheet} />}
       </div>
 
-      {!sheetExpanded && mode === 'planos' && availablePlanKeys.length > 0 && (
+      {!sheetExpanded && activeMode === 'planos' && hasPlanos && (
         <ProjectPlansNav
           active={currentPlano || plano}
           onSelect={selectPlano}
@@ -283,7 +289,9 @@ export default function ProjectDetail() {
         />
       )}
 
-      {!sheetExpanded && <ProjectDock mode={mode} onSelect={selectDock} />}
+      {!sheetExpanded && (
+        <ProjectDock mode={activeMode} onSelect={selectDock} hasPlanos={hasPlanos} />
+      )}
 
       <ProjectSheet
         project={normalizedProject}

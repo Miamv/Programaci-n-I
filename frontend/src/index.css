@@ -1769,6 +1769,18 @@ a {
   color: #fff;
 }
 
+.pv-dock__btn:disabled,
+.pv-dock__btn.is-disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pv-dock__btn:disabled:hover,
+.pv-dock__btn.is-disabled:hover {
+  transform: none;
+}
+
 .pv-dock__icon {
   display: inline-flex;
 }

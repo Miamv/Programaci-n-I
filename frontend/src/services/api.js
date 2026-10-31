@@ -122,6 +122,28 @@ export function getMedia(projectId) {
   return params ? api.get('/media/', { params }) : api.get('/media/');
 }
 
+export function createMedia(data) {
+  if (data instanceof FormData) {
+    return api.post('/media/', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post('/media/', data);
+}
+
+export function updateMedia(id, data) {
+  if (data instanceof FormData) {
+    return api.patch(`/media/${id}/`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.patch(`/media/${id}/`, data);
+}
+
+export function deleteMedia(id) {
+  return api.delete(`/media/${id}/`);
+}
+
 export function getProfiles() {
   return api.get('/profiles/');
 }
