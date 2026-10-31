@@ -88,15 +88,11 @@ class Media(models.Model):
     ]
 
     PLAN_TYPES = [
-        ('planta', 'Planta'),
-        ('plantas', 'Plantas'),
-        ('corte', 'Corte'),
-        ('cortes', 'Cortes'),
-        ('vista', 'Vista'),
-        ('vistas', 'Vistas'),
         ('planimetria', 'Planimetría'),
-        ('detalle', 'Detalle Constructivo'),
-        ('detalle_constructivo', 'Detalle Constructivo'),
+        ('planta', 'Planta'),
+        ('cortes', 'Cortes'),
+        ('vistas', 'Vistas'),
+        ('detalle', 'Detalle'),
     ]
 
     project = models.ForeignKey(
@@ -131,7 +127,6 @@ class Contact(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-
 
 
 class StudioAbout(models.Model):

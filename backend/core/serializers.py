@@ -36,19 +36,18 @@ class ProfessionalProfileSerializer(serializers.ModelSerializer):
 
 
 class MediaSerializer(serializers.ModelSerializer):
-    file = serializers.SerializerMethodField()
-
     class Meta:
         model = Media
         fields = '__all__'
 
-    def get_file(self, obj):
-        if not obj.file:
-            return None
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
         request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.file.url)
-        return obj.file.url
+        if instance.file:
+            data['file'] = request.build_absolute_uri(instance.file.url) if request else instance.file.url
+        else:
+            data['file'] = None
+        return data
 
 
 class ProjectSerializer(serializers.ModelSerializer):
