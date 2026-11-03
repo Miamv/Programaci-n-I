@@ -1,18 +1,30 @@
-import { aboutDescription } from '../content/about';
 import { resolveMediaUrl } from '../services/api';
 
-export default function About({ data }) {
-  const title = data?.title || 'Arquitectura que define espacios contemporáneos';
-  const description = data?.description || aboutDescription;
+export default function About({ data, profile, error }) {
+  const rawTitle = data?.title?.trim() || '';
+  const rawDescription = data?.description?.trim() || profile?.description?.trim() || '';
   const imageUrl = resolveMediaUrl(data?.image);
+  const hasContent = Boolean(rawTitle || rawDescription || imageUrl);
 
   return (
     <section id="nosotros" className="vertice-about">
       <div className="container">
         <div className="row align-items-center g-4 g-lg-5">
           <div className="col-lg-6">
-            <h2 className="vertice-about__title">{title}</h2>
-            <p className="vertice-about__body" style={{ whiteSpace: 'pre-line' }}>{description}</p>
+            <h2 className="vertice-about__title">
+              {rawTitle || 'Sobre el estudio'}
+            </h2>
+            {hasContent && rawDescription ? (
+              <p className="vertice-about__body" style={{ whiteSpace: 'pre-line' }}>
+                {rawDescription}
+              </p>
+            ) : (
+              <p className="vertice-about__body text-muted">
+                {error
+                  ? `No se pudo cargar la información institucional. ${error}`
+                  : 'Aún no hay información institucional publicada para este estudio.'}
+              </p>
+            )}
           </div>
           <div className="col-lg-6">
             <div className="vertice-about__figure" aria-hidden="true">

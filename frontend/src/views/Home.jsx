@@ -6,7 +6,7 @@ import BrandsCarousel from '../components/BrandsCarousel';
 import ProjectCards from '../components/ProjectCards';
 import ContactSection from '../components/ContactSection';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getProjects, getBrands, getProfiles, getMedia, getAbout, getTeam } from '../services/api';
+import { getProjects, getBrands, getProfiles, getAbout, getTeam } from '../services/api';
 
 function toList(data) {
   if (Array.isArray(data)) return data;
@@ -17,50 +17,27 @@ function errorMessage(reason, fallback) {
   return reason?.response?.data?.detail || reason?.message || fallback;
 }
 
-const IMAGE_FILE_RE = /\.(avif|webp|jpe?g|png|gif|bmp|svg)(\?.*)?$/i;
-
-function buildCovers(items) {
-  const byType = {};
-  const byExtension = {};
-
-  for (const item of items) {
-    const projectId = item?.project;
-    const file = item?.file;
-    if (projectId == null || !file) continue;
-
-    if (item.media_type === 'image' || item.media_type === 'render') {
-      if (!byType[projectId]) byType[projectId] = file;
-    } else if (!byType[projectId] && !byExtension[projectId] && IMAGE_FILE_RE.test(file)) {
-      byExtension[projectId] = file;
-    }
-  }
-
-  return { ...byExtension, ...byType };
-}
-
 export default function Home() {
   const [projects, setProjects] = useState([]);
   const [brands, setBrands] = useState([]);
   const [profiles, setProfiles] = useState([]);
-  const [covers, setCovers] = useState({});
   const [aboutData, setAboutData] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [projectsError, setProjectsError] = useState(null);
   const [brandsError, setBrandsError] = useState(null);
+  const [aboutError, setAboutError] = useState(null);
   const [teamError, setTeamError] = useState(null);
-  const [mediaError, setMediaError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const [projectsRes, brandsRes, profilesRes, mediaRes, aboutRes, teamRes] = await Promise.allSettled([
+      const [projectsRes, brandsRes, profilesRes, aboutRes, teamRes] = await Promise.allSettled([
         getProjects(),
         getBrands(),
         getProfiles(),
-        getMedia(),
         getAbout(),
         getTeam(),
       ]);
@@ -82,22 +59,20 @@ export default function Home() {
       if (profilesRes.status === 'fulfilled') {
         setProfiles(toList(profilesRes.value.data));
       } else {
-        setTeamError(errorMessage(profilesRes.reason, 'Error al cargar el equipo.'));
-      }
-
-      if (mediaRes.status === 'fulfilled') {
-        setCovers(buildCovers(toList(mediaRes.value.data)));
-      } else {
-        setMediaError(errorMessage(mediaRes.reason, 'Error al cargar las imágenes de los proyectos.'));
+        setTeamError(errorMessage(profilesRes.reason, 'Error al cargar el perfil del estudio.'));
       }
 
       if (aboutRes.status === 'fulfilled') {
         const aList = toList(aboutRes.value.data);
         setAboutData(aList[0] || null);
+      } else {
+        setAboutError(errorMessage(aboutRes.reason, 'Error al cargar la sección institucional.'));
       }
 
       if (teamRes.status === 'fulfilled') {
         setTeamMembers(toList(teamRes.value.data));
+      } else {
+        setTeamError((prev) => prev || errorMessage(teamRes.reason, 'Error al cargar el equipo.'));
       }
 
       setLoading(false);
@@ -113,27 +88,27 @@ export default function Home() {
     setLoading(true);
     setProjectsError(null);
     setBrandsError(null);
+    setAboutError(null);
     setTeamError(null);
-    setMediaError(null);
     setReloadKey((k) => k + 1);
   }
 
   if (loading) return <LoadingSpinner />;
 
+  const primaryProfile = profiles[0] || null;
+
   return (
     <>
-      <Hero profile={profiles[0]} />
-      <About data={aboutData} />
+      <Hero profile={primaryProfile} />
+      <About data={aboutData} profile={primaryProfile} error={aboutError} />
       <Team members={teamMembers} profiles={profiles} error={teamError} />
       <BrandsCarousel brands={brands} error={brandsError} />
       <ProjectCards
         projects={projects}
-        covers={covers}
         error={projectsError}
-        mediaError={mediaError}
         onRetry={handleRetry}
       />
-      <ContactSection title="Contanos tu proyecto" />
+      <ContactSection title="Contanos tu proyecto" profileId={primaryProfile?.id ?? null} />
     </>
   );
 }

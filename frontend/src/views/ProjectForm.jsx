@@ -110,15 +110,15 @@ export default function ProjectForm() {
             profile: p.profile || (profilesData[0]?.id ?? ''),
           });
 
-          let mediaItems = Array.isArray(p.media) ? p.media : [];
-          if (mediaItems.length === 0) {
+          let mediaItems = Array.isArray(p.media) ? p.media : null;
+          if (mediaItems === null) {
             try {
               const mRes = await getMedia(id);
               mediaItems = Array.isArray(mRes.data)
                 ? mRes.data
                 : (mRes.data?.results ?? []);
             } catch {
-              // Ignorar si falla la carga secundaria de media
+              mediaItems = [];
             }
           }
           if (!cancelled) {
