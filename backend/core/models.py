@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils.text import slugify
 
 
 class Brand(models.Model):
@@ -33,15 +34,43 @@ class User(AbstractUser):
 
 
 class ProfessionalProfile(models.Model):
-    users = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='professional_profiles')
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='professional_profiles',
+        blank=True,
+    )
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     specialty = models.CharField(max_length=100, blank=True)
     services = models.TextField(blank=True)
     contact_email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=30, blank=True)
     avatar = models.ImageField(upload_to='profiles/', blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def _generate_unique_slug(self):
+        base_slug = (slugify(self.name) or 'estudio')[:90]
+        candidate = base_slug
+        counter = 2
+        while ProfessionalProfile.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
+            candidate = f'{base_slug}-{counter}'
+            counter += 1
+        return candidate
+
+    def clean(self):
+        super().clean()
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
+            if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'slug'}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -179,8 +208,6 @@ class StudioAbout(models.Model):
         ProfessionalProfile,
         on_delete=models.CASCADE,
         related_name='about_sections',
-        blank=True,
-        null=True,
     )
     title = models.CharField(max_length=200, default='Sobre el Estudio')
     description = models.TextField(blank=True)
@@ -193,6 +220,9 @@ class StudioAbout(models.Model):
     class Meta:
         verbose_name = 'Sección Nosotros'
         verbose_name_plural = 'Sección Nosotros'
+        constraints = [
+            models.UniqueConstraint(fields=['profile'], name='unique_studioabout_per_profile'),
+        ]
 
 
 class TeamMember(models.Model):
@@ -200,8 +230,6 @@ class TeamMember(models.Model):
         ProfessionalProfile,
         on_delete=models.CASCADE,
         related_name='team_members',
-        blank=True,
-        null=True,
     )
     full_name = models.CharField(max_length=120)
     role = models.CharField(max_length=120)
