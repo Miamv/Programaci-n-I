@@ -42,16 +42,15 @@ export default function ProjectDetail() {
         if (cancelled) return;
 
         const data = res.data;
-        let list = Array.isArray(data.media) ? data.media : [];
+        let list = Array.isArray(data.media) ? data.media : null;
 
-        // Si el proyecto no trae media anidada, consultamos el endpoint /media/?project=<id>
-        if (list.length === 0) {
+        // Solo consultamos /media/?project=<id> si el detalle no incluyó el arreglo `media`
+        if (list === null) {
           try {
             const mRes = await getMedia(id);
-            const mData = Array.isArray(mRes.data) ? mRes.data : (mRes.data?.results ?? []);
-            if (mData.length > 0) list = mData;
+            list = Array.isArray(mRes.data) ? mRes.data : (mRes.data?.results ?? []);
           } catch {
-            // Continuar con los datos base del proyecto
+            list = [];
           }
         }
 

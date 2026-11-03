@@ -1,12 +1,21 @@
+import shutil
+import tempfile
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from core.models import ProfessionalProfile
+from core.models import ProfessionalProfile, Project
 
 User = get_user_model()
+
+VALID_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!'
+    b'\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01D\x00;'
+)
 
 
 class AuthTestCase(APITestCase):
@@ -111,13 +120,35 @@ class AuthTestCase(APITestCase):
 
 class RolePermissionTestCase(APITestCase):
     def setUp(self):
+        self.temp_media = tempfile.mkdtemp()
+        self.override = override_settings(MEDIA_ROOT=self.temp_media)
+        self.override.enable()
+
         self.profile = ProfessionalProfile.objects.create(name='Estudio Uno')
+        self.other_profile = ProfessionalProfile.objects.create(name='Estudio Dos')
+
         self.admin = User.objects.create_user(
             username='admin',
             email='admin@example.com',
             password='securepass123',
             role=User.RoleChoices.ADMIN,
         )
+        self.owner_one = User.objects.create_user(
+            username='owner_one',
+            email='owner1@example.com',
+            password='securepass123',
+            role=User.RoleChoices.OWNER,
+        )
+        self.profile.users.add(self.owner_one)
+
+        self.collab_one = User.objects.create_user(
+            username='collab_one',
+            email='collab1@example.com',
+            password='securepass123',
+            role=User.RoleChoices.COLLABORATOR,
+        )
+        self.profile.users.add(self.collab_one)
+
         self.viewer = User.objects.create_user(
             username='viewer',
             email='viewer@example.com',
@@ -125,13 +156,30 @@ class RolePermissionTestCase(APITestCase):
             role=User.RoleChoices.VIEWER,
         )
 
+        self.project_one = Project.objects.create(
+            profile=self.profile,
+            title='Obra Estudio Uno',
+            description='Memoria',
+            category='architecture',
+        )
+        self.project_two = Project.objects.create(
+            profile=self.other_profile,
+            title='Obra Estudio Dos',
+            description='Memoria',
+            category='architecture',
+        )
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.temp_media, ignore_errors=True)
+
     def _auth(self, user):
         refresh = RefreshToken.for_user(user)
         return {'HTTP_AUTHORIZATION': f'Bearer {refresh.access_token}'}
 
-    def _project_payload(self):
+    def _project_payload(self, profile_id=None):
         return {
-            'profile': self.profile.id,
+            'profile': profile_id or self.profile.id,
             'title': 'Proyecto',
             'description': 'Descripción',
             'category': 'architecture',
@@ -146,14 +194,64 @@ class RolePermissionTestCase(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_admin_can_create_project(self):
+    def test_admin_can_create_project_in_any_profile(self):
         response = self.client.post(
             '/api/projects/',
-            self._project_payload(),
+            self._project_payload(profile_id=self.other_profile.id),
             format='json',
             **self._auth(self.admin),
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_owner_can_create_project_in_own_profile_but_not_foreign_profile(self):
+        own_res = self.client.post(
+            '/api/projects/',
+            self._project_payload(profile_id=self.profile.id),
+            format='json',
+            **self._auth(self.owner_one),
+        )
+        self.assertEqual(own_res.status_code, status.HTTP_201_CREATED)
+
+        foreign_res = self.client.post(
+            '/api/projects/',
+            self._project_payload(profile_id=self.other_profile.id),
+            format='json',
+            **self._auth(self.owner_one),
+        )
+        self.assertEqual(foreign_res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_collaborator_cannot_create_project_but_can_upload_media_to_own_project(self):
+        proj_res = self.client.post(
+            '/api/projects/',
+            self._project_payload(profile_id=self.profile.id),
+            format='json',
+            **self._auth(self.collab_one),
+        )
+        self.assertEqual(proj_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        own_media_res = self.client.post(
+            '/api/media/',
+            {
+                'project': self.project_one.id,
+                'file': SimpleUploadedFile('render.gif', VALID_GIF, content_type='image/gif'),
+                'media_type': 'render',
+            },
+            format='multipart',
+            **self._auth(self.collab_one),
+        )
+        self.assertEqual(own_media_res.status_code, status.HTTP_201_CREATED)
+
+        foreign_media_res = self.client.post(
+            '/api/media/',
+            {
+                'project': self.project_two.id,
+                'file': SimpleUploadedFile('render2.gif', VALID_GIF, content_type='image/gif'),
+                'media_type': 'render',
+            },
+            format='multipart',
+            **self._auth(self.collab_one),
+        )
+        self.assertEqual(foreign_media_res.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_anonymous_can_list_projects(self):
         response = self.client.get('/api/projects/')

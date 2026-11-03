@@ -1,53 +1,69 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import models
 from rest_framework import serializers
 
 from .models import Brand, ProfessionalProfile, Project, Media, Contact, StudioAbout, TeamMember
 
 
-class BrandSerializer(serializers.ModelSerializer):
-    logo = serializers.SerializerMethodField()
+class AbsoluteMediaUrlMixin:
+    """
+    Convierte los campos de archivo configurados en `media_fields` en URLs absolutas
+    al serializar la respuesta, manteniendo los campos del modelo habilitados para
+    escritura (POST, PUT, PATCH con multipart/form-data).
+    """
+    media_fields = ()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        for field_name in self.media_fields:
+            file_field = getattr(instance, field_name, None)
+            if file_field:
+                data[field_name] = (
+                    request.build_absolute_uri(file_field.url)
+                    if request
+                    else file_field.url
+                )
+            else:
+                data[field_name] = None
+        return data
+
+
+class BrandSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
+    media_fields = ('logo',)
 
     class Meta:
         model = Brand
         fields = '__all__'
 
-    def get_logo(self, obj):
-        if not obj.logo:
-            return None
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.logo.url)
-        return obj.logo.url
 
-
-class ProfessionalProfileSerializer(serializers.ModelSerializer):
-    avatar = serializers.SerializerMethodField()
+class ProfessionalProfileSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
+    media_fields = ('avatar',)
 
     class Meta:
         model = ProfessionalProfile
         fields = '__all__'
 
-    def get_avatar(self, obj):
-        if not obj.avatar:
-            return None
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.avatar.url)
-        return obj.avatar.url
 
+class MediaSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
+    media_fields = ('file',)
 
-class MediaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Media
         fields = '__all__'
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        request = self.context.get('request')
-        if instance.file:
-            data['file'] = request.build_absolute_uri(instance.file.url) if request else instance.file.url
-        else:
-            data['file'] = None
-        return data
+    def validate(self, attrs):
+        instance = self.instance
+        media_type = attrs.get('media_type', getattr(instance, 'media_type', None))
+        plan_type = attrs.get('plan_type', getattr(instance, 'plan_type', None))
+        file_obj = attrs.get('file', getattr(instance, 'file', None))
+
+        try:
+            Media.validate_media_coherence(media_type, plan_type, file_obj)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict)
+
+        return attrs
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -63,12 +79,26 @@ class ProjectSerializer(serializers.ModelSerializer):
     def _get_cover_url(self, obj):
         media_cache = getattr(obj, '_prefetched_objects_cache', {}).get('media')
         if media_cache is not None:
+            # 1° prioridad: imagen o render general (sin plan_type)
             first_media = next(
-                (m for m in media_cache if m.media_type in ('image', 'render')),
-                None
+                (
+                    m for m in media_cache
+                    if m.media_type in ('image', 'render') and not m.plan_type
+                ),
+                None,
             )
+            # 2° prioridad (fallback): cualquier imagen o render si solo tiene planos
+            if first_media is None:
+                first_media = next(
+                    (m for m in media_cache if m.media_type in ('image', 'render')),
+                    None,
+                )
         else:
-            first_media = obj.media.filter(media_type__in=['image', 'render']).first()
+            qs = obj.media.filter(media_type__in=['image', 'render'])
+            first_media = (
+                qs.filter(models.Q(plan_type__isnull=True) | models.Q(plan_type='')).first()
+                or qs.first()
+            )
 
         if not first_media or not first_media.file:
             return None
@@ -92,31 +122,17 @@ class ContactSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class StudioAboutSerializer(serializers.ModelSerializer):
+class StudioAboutSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
+    media_fields = ('image',)
+
     class Meta:
         model = StudioAbout
         fields = '__all__'
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        request = self.context.get('request')
-        if instance.image:
-            data['image'] = request.build_absolute_uri(instance.image.url) if request else instance.image.url
-        else:
-            data['image'] = None
-        return data
 
+class TeamMemberSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
+    media_fields = ('avatar',)
 
-class TeamMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeamMember
         fields = '__all__'
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        request = self.context.get('request')
-        if instance.avatar:
-            data['avatar'] = request.build_absolute_uri(instance.avatar.url) if request else instance.avatar.url
-        else:
-            data['avatar'] = None
-        return data

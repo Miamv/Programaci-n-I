@@ -8,11 +8,13 @@ export default function ContactSection({ title = 'Contanos tu proyecto', profile
   const [fetchedProfileId, setFetchedProfileId] = useState(null);
 
   useEffect(() => {
-    if (profileId) return;
+    // Si `profileId` ya fue provisto por la vista padre (incluso como null cuando no hay perfiles),
+    // evitamos realizar una segunda petición redundante a /api/profiles/.
+    if (profileId !== undefined) return;
     let cancelled = false;
     getProfiles()
       .then((res) => {
-        const list = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
+        const list = Array.isArray(res.data) ? res.data : (res.data?.results ?? []);
         if (!cancelled && list.length > 0) setFetchedProfileId(list[0].id);
       })
       .catch(() => {});
@@ -21,7 +23,10 @@ export default function ContactSection({ title = 'Contanos tu proyecto', profile
     };
   }, [profileId]);
 
-  const resolvedProfileId = useMemo(() => profileId ?? fetchedProfileId, [profileId, fetchedProfileId]);
+  const resolvedProfileId = useMemo(
+    () => (profileId !== undefined ? profileId : fetchedProfileId),
+    [profileId, fetchedProfileId]
+  );
 
   return (
     <section id="contacto" className="vertice-contact">
