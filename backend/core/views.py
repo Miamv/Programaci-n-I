@@ -29,6 +29,15 @@ def _is_platform_admin(user):
     )
 
 
+def _is_studio_member_role(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and not _is_platform_admin(user)
+        and getattr(user, 'role', None) in (user.RoleChoices.OWNER, user.RoleChoices.COLLABORATOR)
+    )
+
+
 def _filter_by_profile_params(qs, request, prefix='profile'):
     profile_slug = request.query_params.get('profile_slug')
     profile_id = request.query_params.get('profile')
@@ -57,6 +66,8 @@ class BrandViewSet(viewsets.ModelViewSet):
         if profile_slug or (profile_id is not None and profile_id != ''):
             if not _is_platform_admin(self.request.user):
                 qs = qs.filter(projects__profile__is_active=True)
+            if _is_studio_member_role(self.request.user):
+                qs = qs.filter(projects__profile__users=self.request.user)
             qs = _filter_by_profile_params(qs, self.request, prefix='projects__profile').distinct()
 
         return qs
@@ -74,18 +85,41 @@ class ProfessionalProfileViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not _is_platform_admin(self.request.user):
-            qs = qs.filter(is_active=True)
+        user = self.request.user
+
+        if _is_platform_admin(user):
+            slug_param = self.request.query_params.get('slug')
+            if slug_param:
+                qs = qs.filter(slug=slug_param)
+            return qs
+
+        # Usuarios no administradores solo ven perfiles activos
+        qs = qs.filter(is_active=True)
 
         slug_param = self.request.query_params.get('slug')
         if slug_param:
             qs = qs.filter(slug=slug_param)
 
         if self.request.query_params.get('mine') in ('1', 'true', 'True'):
-            if not self.request.user.is_authenticated:
+            if not user.is_authenticated:
                 return qs.none()
-            if not _is_platform_admin(self.request.user):
-                qs = qs.filter(users=self.request.user)
+            return qs.filter(users=user)
+
+        # OWNER y COLLABORATOR solo pueden listar o ver los perfiles de estudio a los que están asociados
+        if _is_studio_member_role(user):
+            if self.action in ['list', 'retrieve']:
+                return qs.filter(users=user)
+            return qs
+
+        # VIEWER o visitante anónimo:
+        # En detalle (`retrieve` por /api/profiles/<slug>/) puede resolver el estudio del link recibido.
+        # En listado (`list` sin slug explícito, ej. ruta raíz `/`), solo recibe el estudio principal (1 perfil)
+        # para no exponer el catálogo completo de estudios creados en la plataforma.
+        if self.action == 'list' and not slug_param:
+            first_profile = qs.order_by('id').values_list('id', flat=True).first()
+            if first_profile is None:
+                return qs.none()
+            return qs.filter(pk=first_profile)
 
         return qs
 
@@ -106,13 +140,16 @@ class ProfessionalProfileViewSet(viewsets.ModelViewSet):
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Project.objects.all().select_related('profile').prefetch_related('brands', 'media')
+    queryset = Project.objects.select_related('profile').prefetch_related('media', 'brands').order_by('-created_at')
     serializer_class = ProjectSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not _is_platform_admin(self.request.user):
+        user = self.request.user
+        if not _is_platform_admin(user):
             qs = qs.filter(profile__is_active=True)
+        if _is_studio_member_role(user) and self.action in ['list', 'retrieve']:
+            qs = qs.filter(profile__users=user)
         return _filter_by_profile_params(qs, self.request, prefix='profile')
 
     def get_permissions(self):
@@ -122,13 +159,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 
 class MediaViewSet(viewsets.ModelViewSet):
-    queryset = Media.objects.all().select_related('project', 'project__profile')
+    queryset = Media.objects.select_related('project', 'project__profile').order_by('id')
     serializer_class = MediaSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not _is_platform_admin(self.request.user):
+        user = self.request.user
+        if not _is_platform_admin(user):
             qs = qs.filter(project__profile__is_active=True)
+        if _is_studio_member_role(user) and self.action in ['list', 'retrieve']:
+            qs = qs.filter(project__profile__users=user)
 
         project_id = self.request.query_params.get('project')
         if project_id is not None and project_id != '':
@@ -145,47 +185,17 @@ class MediaViewSet(viewsets.ModelViewSet):
         return [CanUploadMedia()]
 
 
-class ContactViewSet(viewsets.ModelViewSet):
-    queryset = Contact.objects.all().select_related('profile')
-    serializer_class = ContactSerializer
-
-    def get_permissions(self):
-        if self.action == 'create':
-            return [AllowAny()]
-        return [CanManageContact()]
-
-    def get_queryset(self):
-        user = self.request.user
-
-        # Usuarios no autenticados no pueden consultar contactos.
-        if not user.is_authenticated:
-            return Contact.objects.none()
-
-        # ADMIN puede ver todos los contactos.
-        if _is_platform_admin(user):
-            qs = Contact.objects.all().select_related('profile')
-            return _filter_by_profile_params(qs, self.request, prefix='profile')
-
-        # OWNER solo puede ver contactos de sus propios perfiles.
-        if user.role == user.RoleChoices.OWNER:
-            qs = Contact.objects.filter(profile__users=user).select_related('profile')
-            return _filter_by_profile_params(qs, self.request, prefix='profile')
-
-        # Para usuarios VIEWER o COLLABORATOR: consultar solicitudes enviadas con su email
-        if user.email:
-            qs = Contact.objects.filter(email__iexact=user.email).select_related('profile')
-            return _filter_by_profile_params(qs, self.request, prefix='profile')
-        return Contact.objects.none()
-
-
 class StudioAboutViewSet(viewsets.ModelViewSet):
-    queryset = StudioAbout.objects.all().select_related('profile')
+    queryset = StudioAbout.objects.select_related('profile').order_by('id')
     serializer_class = StudioAboutSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not _is_platform_admin(self.request.user):
+        user = self.request.user
+        if not _is_platform_admin(user):
             qs = qs.filter(profile__is_active=True)
+        if _is_studio_member_role(user) and self.action in ['list', 'retrieve']:
+            qs = qs.filter(profile__users=user)
         return _filter_by_profile_params(qs, self.request, prefix='profile')
 
     def get_permissions(self):
@@ -195,16 +205,42 @@ class StudioAboutViewSet(viewsets.ModelViewSet):
 
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
-    queryset = TeamMember.objects.all().select_related('profile')
+    queryset = TeamMember.objects.select_related('profile').order_by('order', 'id')
     serializer_class = TeamMemberSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not _is_platform_admin(self.request.user):
+        user = self.request.user
+        if not _is_platform_admin(user):
             qs = qs.filter(profile__is_active=True)
+        if _is_studio_member_role(user) and self.action in ['list', 'retrieve']:
+            qs = qs.filter(profile__users=user)
         return _filter_by_profile_params(qs, self.request, prefix='profile')
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [CanManageStudioContent()]
+
+
+class ContactViewSet(viewsets.ModelViewSet):
+    queryset = Contact.objects.select_related('profile').order_by('-created_at')
+    serializer_class = ContactSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return Contact.objects.none()
+
+        qs = super().get_queryset()
+        if _is_platform_admin(user):
+            return _filter_by_profile_params(qs, self.request, prefix='profile')
+
+        if user.role in (user.RoleChoices.OWNER, user.RoleChoices.COLLABORATOR):
+            qs = qs.filter(profile__users=user)
+            return _filter_by_profile_params(qs, self.request, prefix='profile')
+
+        return qs.filter(email=user.email)
+
+    def get_permissions(self):
+        return [CanManageContact()]

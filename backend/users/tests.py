@@ -437,3 +437,169 @@ class RolePermissionTestCase(APITestCase):
             **self._auth(self.owner_one),
         )
         self.assertEqual(own_team_res.status_code, status.HTTP_201_CREATED)
+
+    def test_profile_visibility_by_role_admin_owner_collaborator_viewer(self):
+        # 1. ADMIN ve todos los estudios en el listado
+        admin_list = self.client.get('/api/profiles/', **self._auth(self.admin))
+        self.assertEqual(admin_list.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(admin_list.data), 2)
+
+        # 2. OWNER y COLLABORATOR solo ven el estudio al que están asociados y reciben 404 en un estudio ajeno
+        owner_list = self.client.get('/api/profiles/', **self._auth(self.owner_one))
+        self.assertEqual([p['id'] for p in owner_list.data], [self.profile.id])
+
+        collab_list = self.client.get('/api/profiles/', **self._auth(self.collab_one))
+        self.assertEqual([p['id'] for p in collab_list.data], [self.profile.id])
+
+        owner_foreign_detail = self.client.get(
+            f'/api/profiles/{self.other_profile.slug}/',
+            **self._auth(self.owner_one),
+        )
+        self.assertEqual(owner_foreign_detail.status_code, status.HTTP_404_NOT_FOUND)
+
+        # 3. VIEWER y visitante anónimo: en listado sin slug solo reciben 1 estudio (no el catálogo completo),
+        # pero pueden acceder directamente por el link `/api/profiles/<slug>/` del estudio que les compartieron.
+        viewer_list = self.client.get('/api/profiles/', **self._auth(self.viewer))
+        self.assertEqual(len(viewer_list.data), 1)
+
+        anon_list = self.client.get('/api/profiles/')
+        self.assertEqual(len(anon_list.data), 1)
+
+        viewer_direct_link = self.client.get(
+            f'/api/profiles/{self.other_profile.slug}/',
+            **self._auth(self.viewer),
+        )
+        self.assertEqual(viewer_direct_link.status_code, status.HTTP_200_OK)
+        self.assertEqual(viewer_direct_link.data['slug'], self.other_profile.slug)
+
+    def test_etapa4_two_owners_dashboard_isolation_id_manipulation_and_quote_request(self):
+        owner_two = User.objects.create_user(
+            username='owner_two',
+            email='owner2@example.com',
+            password='securepass123',
+            role=User.RoleChoices.OWNER,
+        )
+        self.other_profile.users.add(owner_two)
+
+        # Crear recursos del Estudio Uno y Estudio Dos
+        about_one = StudioAbout.objects.create(
+            profile=self.profile,
+            title='Nosotros Uno',
+            description='Sub Uno',
+        )
+        about_two = StudioAbout.objects.create(
+            profile=self.other_profile,
+            title='Nosotros Dos',
+            description='Sub Dos',
+        )
+        member_one = TeamMember.objects.create(
+            profile=self.profile,
+            full_name='Integrante Uno',
+            role='Arquitecta',
+        )
+        TeamMember.objects.create(
+            profile=self.other_profile,
+            full_name='Integrante Dos',
+            role='Ingeniero',
+        )
+
+        # 1. Aislamiento en dashboard por ?profile=<id> (incluso para ADMIN, no mezcla estudios)
+        admin_projects_one = self.client.get(
+            f'/api/projects/?profile={self.profile.id}',
+            **self._auth(self.admin),
+        )
+        self.assertEqual([p['id'] for p in admin_projects_one.data], [self.project_one.id])
+
+        admin_projects_two = self.client.get(
+            f'/api/projects/?profile={self.other_profile.id}',
+            **self._auth(self.admin),
+        )
+        self.assertEqual([p['id'] for p in admin_projects_two.data], [self.project_two.id])
+
+        admin_team_one = self.client.get(
+            f'/api/team/?profile={self.profile.id}',
+            **self._auth(self.admin),
+        )
+        self.assertEqual([m['id'] for m in admin_team_one.data], [member_one.id])
+
+        admin_about_two = self.client.get(
+            f'/api/about/?profile={self.other_profile.id}',
+            **self._auth(self.admin),
+        )
+        self.assertEqual([a['id'] for a in admin_about_two.data], [about_two.id])
+
+        # 2. Manipulación de IDs de perfil al actualizar recursos propios -> 403 Forbidden
+        hijack_team_res = self.client.patch(
+            f'/api/team/{member_one.id}/',
+            {'profile': self.other_profile.id, 'full_name': 'Transferido'},
+            format='json',
+            **self._auth(self.owner_one),
+        )
+        self.assertEqual(hijack_team_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        hijack_about_res = self.client.patch(
+            f'/api/about/{about_one.id}/',
+            {'profile': self.other_profile.id, 'title': 'Robado'},
+            format='json',
+            **self._auth(self.owner_one),
+        )
+        self.assertEqual(hijack_about_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        hijack_project_res = self.client.patch(
+            f'/api/projects/{self.project_one.id}/',
+            {'profile': self.other_profile.id},
+            format='json',
+            **self._auth(self.owner_one),
+        )
+        self.assertEqual(hijack_project_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3. Intento de owner_two de editar recursos de owner_one -> 403 Forbidden
+        cross_edit_team = self.client.patch(
+            f'/api/team/{member_one.id}/',
+            {'full_name': 'Intruso'},
+            format='json',
+            **self._auth(owner_two),
+        )
+        self.assertEqual(cross_edit_team.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 4. Solicitud de presupuesto (Contact / QuoteRequest) vinculada a cada estudio y aislada por owner
+        quote_one = self.client.post(
+            '/api/contacts/',
+            {
+                'profile': self.profile.id,
+                'name': 'Cliente Uno',
+                'email': 'cliente1@test.com',
+                'message': 'Consulta para Estudio Uno',
+            },
+            format='json',
+            **self._auth(self.viewer),
+        )
+        self.assertEqual(quote_one.status_code, status.HTTP_201_CREATED)
+
+        quote_two = self.client.post(
+            '/api/contacts/',
+            {
+                'profile': self.other_profile.id,
+                'name': 'Cliente Dos',
+                'email': 'cliente2@test.com',
+                'message': 'Consulta para Estudio Dos',
+            },
+            format='json',
+            **self._auth(self.viewer),
+        )
+        self.assertEqual(quote_two.status_code, status.HTTP_201_CREATED)
+
+        # owner_one solo ve las consultas de su estudio, y ADMIN filtra por ?profile=<id>
+        owner_one_contacts = self.client.get('/api/contacts/', **self._auth(self.owner_one))
+        self.assertEqual([c['id'] for c in owner_one_contacts.data], [quote_one.data['id']])
+
+        owner_two_contacts = self.client.get('/api/contacts/', **self._auth(owner_two))
+        self.assertEqual([c['id'] for c in owner_two_contacts.data], [quote_two.data['id']])
+
+        admin_contacts_two = self.client.get(
+            f'/api/contacts/?profile={self.other_profile.id}',
+            **self._auth(self.admin),
+        )
+        self.assertEqual([c['id'] for c in admin_contacts_two.data], [quote_two.data['id']])
+
+

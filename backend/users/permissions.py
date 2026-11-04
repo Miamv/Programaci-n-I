@@ -57,7 +57,7 @@ class CanManageProject(permissions.BasePermission):
             return False
 
         role = request.user.role
-        if role == User.RoleChoices.ADMIN:
+        if _is_platform_admin(request.user):
             return True
 
         if view.action == 'create':
@@ -77,18 +77,15 @@ class CanManageProject(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
-        if request.user.role == User.RoleChoices.ADMIN:
+        if _is_platform_admin(request.user):
             return True
 
         if not obj.profile.users.filter(id=request.user.id).exists():
             return False
 
-        # Si en un update/partial_update se intenta reasignar el proyecto a otro perfil,
-        # verificar que el perfil destino también pertenezca al usuario.
+        # Si en un update/partial_update se envía `profile`, verificar que pertenezca al usuario
         if view.action in ['update', 'partial_update'] and 'profile' in request.data:
-            new_profile_id = request.data.get('profile')
-            if new_profile_id is not None and new_profile_id != '':
-                return _user_owns_profile(request.user, new_profile_id)
+            return _user_owns_profile(request.user, request.data.get('profile'))
 
         return True
 
@@ -103,7 +100,7 @@ class CanUploadMedia(permissions.BasePermission):
             return False
 
         role = request.user.role
-        if role == User.RoleChoices.ADMIN:
+        if _is_platform_admin(request.user):
             return True
 
         if role not in [User.RoleChoices.OWNER, User.RoleChoices.COLLABORATOR]:
@@ -118,16 +115,14 @@ class CanUploadMedia(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
-        if request.user.role == User.RoleChoices.ADMIN:
+        if _is_platform_admin(request.user):
             return True
 
         if not obj.project.profile.users.filter(id=request.user.id).exists():
             return False
 
         if view.action in ['update', 'partial_update'] and 'project' in request.data:
-            new_project_id = request.data.get('project')
-            if new_project_id is not None and new_project_id != '':
-                return _user_owns_project(request.user, new_project_id)
+            return _user_owns_project(request.user, request.data.get('project'))
 
         return True
 
@@ -233,7 +228,5 @@ class CanManageStudioContent(permissions.BasePermission):
         if getattr(obj, 'profile_id', None) is None or not obj.profile.users.filter(id=request.user.id).exists():
             return False
         if view.action in ['update', 'partial_update'] and 'profile' in request.data:
-            new_profile_id = request.data.get('profile')
-            if new_profile_id is not None and new_profile_id != '':
-                return _user_owns_profile(request.user, new_profile_id)
+            return _user_owns_profile(request.user, request.data.get('profile'))
         return True
