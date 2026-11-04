@@ -1,14 +1,42 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import useScrollTo from '../hooks/useScrollTo';
 import studio from '../config/studio';
 
-export default function Footer() {
+export default function Footer({ studioContext }) {
+  const scrollTo = useScrollTo();
+  const location = useLocation();
+
+  const slugMatch = location.pathname.match(/^\/estudios\/([^/]+)/);
+  const urlSlug = slugMatch ? decodeURIComponent(slugMatch[1]) : null;
+
+  const contextProfile = studioContext?.profile || null;
+  const activeProfile =
+    !urlSlug || contextProfile?.slug === urlSlug ? contextProfile : null;
+
+  const brandName = activeProfile?.name || studio.platformName || 'Vértice';
+  const resolvedSlug = urlSlug || activeProfile?.slug || null;
+  const basePath = resolvedSlug ? `/estudios/${resolvedSlug}` : '/';
+
+  const phone = activeProfile?.phone?.trim() || '';
+  const email = activeProfile?.contact_email?.trim() || '';
+  const specialty = activeProfile?.specialty?.trim() || '';
+
+  function handleSectionClick(e, sectionId) {
+    e.preventDefault();
+    scrollTo(sectionId, basePath);
+  }
+
   return (
     <footer className="vertice-footer">
       <div className="container">
         <div className="vertice-footer__grid">
           <div className="vertice-footer__brand">
-            <p className="vertice-footer__heading">Brand</p>
-            <Link to="/" className="vertice-footer__brand-lockup" aria-label={`${studio.name} inicio`}>
+            <p className="vertice-footer__heading">Estudio</p>
+            <Link
+              to={basePath}
+              className="vertice-footer__brand-lockup"
+              aria-label={`${brandName} inicio`}
+            >
               <span className="vertice-footer__mark" aria-hidden="true">
                 <svg width="28" height="22" viewBox="0 0 98 72" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 68 V18 L28 8 L28 68" stroke="currentColor" strokeWidth="2.6" fill="none" />
@@ -16,40 +44,94 @@ export default function Footer() {
                   <path d="M42 68 V38 L60 26 L60 68" stroke="currentColor" strokeWidth="2.6" fill="none" />
                 </svg>
               </span>
-              <span>{studio.name}</span>
+              <span>{brandName}</span>
             </Link>
+            {specialty && (
+              <p className="text-muted small mt-2 mb-0">{specialty}</p>
+            )}
           </div>
 
           <div>
             <p className="vertice-footer__heading">Navegación</p>
             <ul className="vertice-footer__list">
-              <li><Link to="/">Home</Link></li>
-              <li><Link to="/#nosotros">Nosotros</Link></li>
-              <li><Link to="/#proyectos">Proyectos</Link></li>
-              <li><a href="#contacto">Contacto</a></li>
+              <li>
+                <Link to={basePath}>Home</Link>
+              </li>
+              {(!activeProfile || studioContext?.hasAbout) && (
+                <li>
+                  <a
+                    href={`${basePath}#nosotros`}
+                    onClick={(e) => handleSectionClick(e, 'nosotros')}
+                  >
+                    Nosotros
+                  </a>
+                </li>
+              )}
+              {activeProfile && studioContext?.hasTeam && (
+                <li>
+                  <a
+                    href={`${basePath}#equipo`}
+                    onClick={(e) => handleSectionClick(e, 'equipo')}
+                  >
+                    Equipo
+                  </a>
+                </li>
+              )}
+              <li>
+                <a
+                  href={`${basePath}#proyectos`}
+                  onClick={(e) => handleSectionClick(e, 'proyectos')}
+                >
+                  Proyectos
+                </a>
+              </li>
+              <li>
+                <a
+                  href={`${basePath}#contacto`}
+                  onClick={(e) => handleSectionClick(e, 'contacto')}
+                >
+                  Contacto
+                </a>
+              </li>
             </ul>
           </div>
 
           <div>
             <p className="vertice-footer__heading">Contacto</p>
             <ul className="vertice-footer__list vertice-footer__list--contact">
-              <li>
-                <span className="vertice-footer__icon" aria-hidden="true">◷</span>
-                <a href={`tel:${studio.contact.phone}`}>{studio.contact.phone}</a>
-              </li>
-              <li>
-                <span className="vertice-footer__icon" aria-hidden="true">✉</span>
-                <a href={`mailto:${studio.contact.email}`}>{studio.contact.email}</a>
-              </li>
+              {phone && (
+                <li>
+                  <span className="vertice-footer__icon" aria-hidden="true">◷</span>
+                  <a href={`tel:${phone}`}>{phone}</a>
+                </li>
+              )}
+              {email && (
+                <li>
+                  <span className="vertice-footer__icon" aria-hidden="true">✉</span>
+                  <a href={`mailto:${email}`}>{email}</a>
+                </li>
+              )}
+              {!phone && !email && (
+                <li>
+                  <span className="vertice-footer__icon" aria-hidden="true">✉</span>
+                  <a
+                    href={`${basePath}#contacto`}
+                    onClick={(e) => handleSectionClick(e, 'contacto')}
+                  >
+                    Enviar consulta online
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
 
           <div>
-            <p className="vertice-footer__heading">Redes</p>
-            <div className="vertice-footer__social">
-              <a href={studio.social.instagram} aria-label="Instagram" className="vertice-footer__social-btn">◎</a>
-              <a href={studio.social.facebook} aria-label="Facebook" className="vertice-footer__social-btn">f</a>
-            </div>
+            <p className="vertice-footer__heading">Plataforma</p>
+            <ul className="vertice-footer__list">
+              <li>
+                <span className="text-muted small">Arquitectura Multiestudio Vértice</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

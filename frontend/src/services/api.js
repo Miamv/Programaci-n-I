@@ -10,9 +10,16 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const isPublicAuthEndpoint =
+    config.url?.includes('/auth/login/') ||
+    config.url?.includes('/auth/register/') ||
+    config.url?.includes('/auth/refresh/');
+
+  if (!isPublicAuthEndpoint) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
@@ -21,6 +28,11 @@ function clearSession() {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('auth_user');
+  try {
+    sessionStorage.removeItem('vertice_active_studio_slug');
+  } catch {
+    // Ignore storage errors
+  }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('auth:logout'));
   }
@@ -85,12 +97,12 @@ api.interceptors.response.use(
   }
 );
 
-export function getProjects() {
-  return api.get('/projects/');
+export function getProjects(params) {
+  return params ? api.get('/projects/', { params }) : api.get('/projects/');
 }
 
-export function getProject(id) {
-  return api.get(`/projects/${id}/`);
+export function getProject(id, params) {
+  return params ? api.get(`/projects/${id}/`, { params }) : api.get(`/projects/${id}/`);
 }
 
 export function createProject(data) {
@@ -117,9 +129,12 @@ export function resolveMediaUrl(url) {
   return `${origin}${path}`;
 }
 
-export function getMedia(projectId) {
-  const params = projectId === undefined || projectId === null ? undefined : { project: projectId };
-  return params ? api.get('/media/', { params }) : api.get('/media/');
+export function getMedia(projectId, extraParams) {
+  const params = {
+    ...(extraParams || {}),
+    ...(projectId !== undefined && projectId !== null ? { project: projectId } : {}),
+  };
+  return Object.keys(params).length > 0 ? api.get('/media/', { params }) : api.get('/media/');
 }
 
 export function createMedia(data) {
@@ -144,16 +159,20 @@ export function deleteMedia(id) {
   return api.delete(`/media/${id}/`);
 }
 
-export function getProfiles() {
-  return api.get('/profiles/');
+export function getProfiles(params) {
+  return params ? api.get('/profiles/', { params }) : api.get('/profiles/');
 }
 
-export function getBrands() {
-  return api.get('/brands/');
+export function getProfileBySlug(slug) {
+  return api.get(`/profiles/${encodeURIComponent(slug)}/`);
 }
 
-export function getAbout() {
-  return api.get('/about/');
+export function getBrands(params) {
+  return params ? api.get('/brands/', { params }) : api.get('/brands/');
+}
+
+export function getAbout(params) {
+  return params ? api.get('/about/', { params }) : api.get('/about/');
 }
 
 export function createAbout(data) {
@@ -174,8 +193,8 @@ export function updateAbout(id, data) {
   return api.patch(`/about/${id}/`, data);
 }
 
-export function getTeam() {
-  return api.get('/team/');
+export function getTeam(params) {
+  return params ? api.get('/team/', { params }) : api.get('/team/');
 }
 
 export function createTeamMember(data) {
@@ -200,8 +219,8 @@ export function deleteTeamMember(id) {
   return api.delete(`/team/${id}/`);
 }
 
-export function getContacts() {
-  return api.get('/contacts/');
+export function getContacts(params) {
+  return params ? api.get('/contacts/', { params }) : api.get('/contacts/');
 }
 
 export function sendContact(data) {

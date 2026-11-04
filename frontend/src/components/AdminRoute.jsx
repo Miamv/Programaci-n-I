@@ -1,10 +1,11 @@
-import { Navigate, Outlet, useLocation, Link } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useOutletContext, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function AdminRoute() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const outletContext = useOutletContext();
 
   if (isLoading) {
     return (
@@ -19,9 +20,9 @@ export default function AdminRoute() {
   }
 
   const role = (user?.role || '').toLowerCase();
-  const isAdminOrOwner = role === 'admin' || role === 'owner';
+  const canAccessPanel = role === 'admin' || role === 'owner' || role === 'collaborator';
 
-  if (!isAdminOrOwner) {
+  if (!canAccessPanel) {
     return (
       <div className="container py-5 my-md-5">
         <div
@@ -45,7 +46,7 @@ export default function AdminRoute() {
           </h2>
           <p className="text-muted small mb-4" style={{ lineHeight: 1.6 }}>
             Tu cuenta actual (<strong>{user.username}</strong>) está registrada con el rol de <strong>{role.toUpperCase()}</strong>.
-            Esta sección de gestión de proyectos requiere rol de <strong>ADMINISTRADOR</strong> o <strong>PROPIETARIO</strong>.
+            Esta sección de gestión del estudio requiere rol de <strong>ADMIN</strong>, <strong>OWNER</strong> o <strong>COLLABORATOR</strong>.
           </p>
           <Link to="/" className="btn btn-dark rounded-pill px-4 py-2 fw-semibold">
             Volver al inicio
@@ -55,5 +56,5 @@ export default function AdminRoute() {
     );
   }
 
-  return <Outlet />;
+  return <Outlet context={outletContext} />;
 }

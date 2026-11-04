@@ -56,6 +56,7 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('auth_user');
+    try { sessionStorage.removeItem('vertice_active_studio_slug'); } catch { /* ignore */ }
           setUser(null);
         }
       })
@@ -234,6 +235,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('auth_user');
+    try { sessionStorage.removeItem('vertice_active_studio_slug'); } catch { /* ignore */ }
     setUser(null);
   }, []);
 

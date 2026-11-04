@@ -6,16 +6,17 @@ export default function useScrollTo() {
   const navigate = useNavigate();
 
   const scrollTo = useCallback(
-    (id) => {
-      if (location.pathname !== '/') {
-        navigate(`/#${id}`);
+    (id, basePath = '/') => {
+      const normalizedCurrent = location.pathname.replace(/\/+$/, '') || '/';
+      const normalizedTarget = basePath.replace(/\/+$/, '') || '/';
+
+      const element = document.getElementById(id);
+      if (normalizedCurrent === normalizedTarget && element) {
+        element.scrollIntoView({ behavior: 'smooth' });
         return;
       }
 
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
+      navigate(`${normalizedTarget}#${id}`);
     },
     [location.pathname, navigate]
   );
