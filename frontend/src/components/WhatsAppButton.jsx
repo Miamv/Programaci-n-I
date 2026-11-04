@@ -1,9 +1,17 @@
 import studio from '../config/studio';
 
-export default function WhatsAppButton() {
-  const phone = studio.contact.phone.replace(/[^0-9]/g, '');
-  const message = encodeURIComponent(studio.contact.whatsappMessage);
-  const url = `https://wa.me/${phone}?text=${message}`;
+export default function WhatsAppButton({ phone, studioName }) {
+  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  if (!cleanPhone) {
+    return null;
+  }
+
+  const rawMessage = studioName
+    ? `Hola ${studioName}, me gustaría consultar por un proyecto.`
+    : studio.contact.whatsappMessage;
+
+  const message = encodeURIComponent(rawMessage);
+  const url = `https://wa.me/${cleanPhone}?text=${message}`;
 
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className="vertice-whatsapp">

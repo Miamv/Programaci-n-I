@@ -6,6 +6,11 @@ export default function About({ data, profile, error }) {
   const imageUrl = resolveMediaUrl(data?.image);
   const hasContent = Boolean(rawTitle || rawDescription || imageUrl);
 
+  // Ocultar la sección opcional si el estudio no tiene contenido institucional ni ocurrió un error
+  if (!hasContent && !error) {
+    return null;
+  }
+
   return (
     <section id="nosotros" className="vertice-about">
       <div className="container">
@@ -22,7 +27,7 @@ export default function About({ data, profile, error }) {
               <p className="vertice-about__body text-muted">
                 {error
                   ? `No se pudo cargar la información institucional. ${error}`
-                  : 'Aún no hay información institucional publicada para este estudio.'}
+                  : ''}
               </p>
             )}
           </div>
@@ -32,7 +37,7 @@ export default function About({ data, profile, error }) {
                 {imageUrl ? (
                   <img
                     src={imageUrl}
-                    alt="Boceto arquitectónico del estudio"
+                    alt={`Imagen institucional de ${profile?.name || 'el estudio'}`}
                     style={{
                       width: '100%',
                       height: 'auto',
@@ -52,7 +57,9 @@ export default function About({ data, profile, error }) {
                     <path d="M80 300 H430" stroke="currentColor" strokeWidth="1.1" opacity="0.28" />
                   </svg>
                 )}
-                <span className="vertice-about__figure-caption">Boceto — estudio</span>
+                <span className="vertice-about__figure-caption">
+                  {profile?.name ? `Estudio — ${profile.name}` : 'Boceto — estudio'}
+                </span>
               </div>
             </div>
           </div>

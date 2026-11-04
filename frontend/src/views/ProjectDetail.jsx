@@ -11,7 +11,7 @@ import { getProject, getMedia, resolveMediaUrl } from '../services/api';
 import { PLAN_KEYS, generatePlanoPlaceholder, normalizePlanType } from '../config/plans';
 
 export default function ProjectDetail() {
-  const { id } = useParams();
+  const { slug, id } = useParams();
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
@@ -38,7 +38,8 @@ export default function ProjectDetail() {
 
     async function loadProjectData() {
       try {
-        const res = await getProject(id);
+        const queryParams = slug ? { profile_slug: slug } : undefined;
+        const res = await getProject(id, queryParams);
         if (cancelled) return;
 
         const data = res.data;
@@ -47,7 +48,7 @@ export default function ProjectDetail() {
         // Solo consultamos /media/?project=<id> si el detalle no incluyó el arreglo `media`
         if (list === null) {
           try {
-            const mRes = await getMedia(id);
+            const mRes = await getMedia(id, queryParams);
             list = Array.isArray(mRes.data) ? mRes.data : (mRes.data?.results ?? []);
           } catch {
             list = [];
@@ -65,7 +66,7 @@ export default function ProjectDetail() {
           setIs404(status === 404);
           setError(
             status === 404
-              ? 'El proyecto que estás buscando no existe o fue dado de baja.'
+              ? 'El proyecto que estás buscando no pertenece a este estudio, no existe o fue dado de baja.'
               : err?.response?.data?.detail ||
                 err?.message ||
                 'No se pudo conectar con el servidor para obtener los datos del proyecto.'
@@ -83,12 +84,20 @@ export default function ProjectDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, reloadKey]);
+  }, [id, slug, reloadKey]);
+
+  const resolvedSlug = slug || project?.profile_slug || null;
+  const backPath = resolvedSlug ? `/estudios/${encodeURIComponent(resolvedSlug)}` : '/';
 
   const projectTitle = project?.title || project?.titulo || 'Proyecto';
   const projectCategory = project?.category || project?.categoria || 'Arquitectura';
-  const projectSubtitle = project?.subtitulo || (project?.category ? String(project.category).toUpperCase() : 'Proyecto del estudio');
-  const projectDescription = project?.description || project?.memoriaDescriptiva || 'Sin descripción disponible.';
+  const projectSubtitle =
+    project?.subtitulo ||
+    (project?.profile_name
+      ? `${project.profile_name} · ${String(projectCategory).toUpperCase()}`
+      : String(projectCategory).toUpperCase());
+  const projectDescription =
+    project?.description || project?.memoriaDescriptiva || 'Sin descripción disponible.';
 
   const mediaList = useMemo(() => {
     return project?.mediaList || project?.media || [];
@@ -151,16 +160,17 @@ export default function ProjectDetail() {
 
   const normalizedProject = useMemo(() => {
     if (!project) return null;
+    const defaultLocation = project.ubicacionTexto || project.profile_name || 'Argentina';
     return {
       ...project,
       titulo: projectTitle,
       categoria: projectCategory,
       subtitulo: projectSubtitle,
       memoriaDescriptiva: projectDescription,
-      ubicacionTexto: project.ubicacionTexto || 'Mendoza, Argentina',
+      ubicacionTexto: defaultLocation,
       googleEarthUrl:
         project.googleEarthUrl ||
-        `https://earth.google.com/web/search/${encodeURIComponent(projectTitle + ' Mendoza')}`,
+        `https://earth.google.com/web/search/${encodeURIComponent(`${projectTitle} ${defaultLocation}`)}`,
       specs: project.specs || null,
     };
   }, [project, projectTitle, projectCategory, projectSubtitle, projectDescription]);
@@ -240,9 +250,9 @@ export default function ProjectDetail() {
             <button
               type="button"
               className="pv-btn pv-btn--primary"
-              onClick={() => navigate('/')}
+              onClick={() => navigate(backPath)}
             >
-              Volver a la Home
+              {resolvedSlug ? 'Volver al estudio' : 'Volver a la Home'}
             </button>
           </div>
         </div>
@@ -274,7 +284,7 @@ export default function ProjectDetail() {
         <ProjectTopBar
           title={normalizedProject.titulo}
           category={normalizedProject.categoria}
-          onBack={() => navigate('/')}
+          onBack={() => navigate(backPath)}
         />
 
         {showLocation && <ProjectLocation project={normalizedProject} onSwipeUp={expandSheet} />}

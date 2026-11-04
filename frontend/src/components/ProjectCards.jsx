@@ -12,7 +12,7 @@ function Chevron({ dir = 'left' }) {
 const COPIES = 3;
 const RESET_DELAY = 420;
 
-function ProjectCarouselStage({ projects, covers }) {
+function ProjectCarouselStage({ projects, covers, studioSlug }) {
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
   const instantRef = useRef(false);
@@ -97,7 +97,11 @@ function ProjectCarouselStage({ projects, covers }) {
               }}
               aria-label={`Ver ${project.title}`}
             >
-              <ProjectCard project={project} coverUrl={covers?.[project.id]} />
+              <ProjectCard
+                project={project}
+                coverUrl={covers?.[project.id]}
+                studioSlug={studioSlug}
+              />
             </div>
           ))}
         </div>
@@ -115,7 +119,14 @@ function ProjectCarouselStage({ projects, covers }) {
   );
 }
 
-export default function ProjectCards({ projects, covers, error, mediaError, onRetry }) {
+export default function ProjectCards({
+  projects,
+  covers,
+  error,
+  mediaError,
+  onRetry,
+  studioSlug,
+}) {
   const safeProjects = useMemo(() => (Array.isArray(projects) ? projects : []), [projects]);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -193,8 +204,8 @@ export default function ProjectCards({ projects, covers, error, mediaError, onRe
               </>
             ) : (
               <>
-                <p className="vertice-projects__empty-title">Aún no hay proyectos para mostrar.</p>
-                <p className="vertice-projects__empty-desc">Cuando el estudio publique proyectos en la API, aparecerán aquí.</p>
+                <p className="vertice-projects__empty-title">Aún no hay proyectos publicados en este estudio.</p>
+                <p className="vertice-projects__empty-desc">Cuando el estudio publique proyectos en su portfolio, aparecerán aquí.</p>
               </>
             )}
           </div>
@@ -217,9 +228,10 @@ export default function ProjectCards({ projects, covers, error, mediaError, onRe
         </div>
       ) : (
         <ProjectCarouselStage
-          key={`${searchTerm}:${filteredProjects.length}`}
+          key={`${studioSlug || 'default'}:${searchTerm}:${filteredProjects.length}`}
           projects={filteredProjects}
           covers={covers}
+          studioSlug={studioSlug}
         />
       )}
 
