@@ -2,10 +2,21 @@ import shutil
 import tempfile
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, transaction
 from django.test import TestCase, RequestFactory, override_settings
 
-from .admin import CustomUserCreationForm, UserAdmin, ProjectAdmin, MediaInline
+from .admin import (
+    BrandAdmin,
+    CustomUserCreationForm,
+    MediaInline,
+    ProfessionalProfileAdmin,
+    ProjectAdmin,
+    StudioAboutAdmin,
+    TeamMemberAdmin,
+    UserAdmin,
+)
 from .models import User, Brand, ProfessionalProfile, Project, Media, StudioAbout, TeamMember
 from .serializers import (
     BrandSerializer,
@@ -311,3 +322,142 @@ class MediaAndProjectSerializerTestCase(TestCase):
         serializer_with_avatar = ProfessionalProfileSerializer(self.profile, context={'request': request})
         self.assertIsNotNone(serializer_with_avatar.data['avatar'])
         self.assertIn('team/avatar.jpg', serializer_with_avatar.data['avatar'])
+
+
+class MultiStudioDomainAndAdminTestCase(TestCase):
+    def setUp(self):
+        self.site = AdminSite()
+        self.rf = RequestFactory()
+
+        self.admin_user = User.objects.create_user(
+            username='platform_admin',
+            email='admin@vertice.arq',
+            password='StrongPassword123!',
+            role=User.RoleChoices.ADMIN,
+            is_staff=True,
+        )
+        self.owner_a = User.objects.create_user(
+            username='owner_norte',
+            email='norte@estudio.arq',
+            password='StrongPassword123!',
+            role=User.RoleChoices.OWNER,
+            is_staff=True,
+        )
+        self.owner_b = User.objects.create_user(
+            username='owner_sur',
+            email='sur@estudio.arq',
+            password='StrongPassword123!',
+            role=User.RoleChoices.OWNER,
+            is_staff=True,
+        )
+
+        self.studio_a = ProfessionalProfile.objects.create(
+            name='Estudio Norte',
+            phone='+5492611111111',
+            contact_email='contacto@norte.arq',
+        )
+        self.studio_a.users.add(self.owner_a)
+
+        self.studio_b = ProfessionalProfile.objects.create(
+            name='Estudio Sur',
+            phone='+5492612222222',
+            contact_email='contacto@sur.arq',
+        )
+        self.studio_b.users.add(self.owner_b)
+
+    def test_slug_autogeneration_disambiguation_and_explicit_uniqueness(self):
+        self.assertEqual(self.studio_a.slug, 'estudio-norte')
+        self.assertEqual(self.studio_b.slug, 'estudio-sur')
+        self.assertTrue(self.studio_a.is_active)
+        self.assertEqual(self.studio_a.phone, '+5492611111111')
+
+        # Si se crea otro estudio con el mismo nombre sin especificar slug, se desambigua automáticamente
+        duplicate_name_studio = ProfessionalProfile.objects.create(name='Estudio Norte')
+        self.assertEqual(duplicate_name_studio.slug, 'estudio-norte-2')
+
+        # Si se fuerza explícitamente un slug ya existente, falla la restricción de unicidad
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ProfessionalProfile.objects.create(name='Otro Estudio', slug='estudio-norte')
+
+    def test_studioabout_unique_per_profile_and_mandatory_relations(self):
+        StudioAbout.objects.create(
+            profile=self.studio_a,
+            title='Nosotros Norte',
+            description='Arquitectura de montaña.',
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                StudioAbout.objects.create(
+                    profile=self.studio_a,
+                    title='Segundo Nosotros Norte',
+                    description='Duplicado no permitido.',
+                )
+
+        # Otro estudio sí puede tener su propio StudioAbout
+        about_b = StudioAbout.objects.create(
+            profile=self.studio_b,
+            title='Nosotros Sur',
+            description='Arquitectura austral.',
+        )
+        self.assertEqual(about_b.profile, self.studio_b)
+
+        # TeamMember exige profile obligatorio
+        member_without_profile = TeamMember(full_name='Arq. Sin Estudio', role='Socio')
+        with self.assertRaises(ValidationError):
+            member_without_profile.full_clean()
+
+    def test_django_admin_isolation_by_studio_and_brand_permissions(self):
+        proj_a = Project.objects.create(
+            profile=self.studio_a,
+            title='Casa Norte',
+            description='Obra A',
+            category='architecture',
+        )
+        proj_b = Project.objects.create(
+            profile=self.studio_b,
+            title='Casa Sur',
+            description='Obra B',
+            category='architecture',
+        )
+        about_a = StudioAbout.objects.create(profile=self.studio_a, title='About A')
+        about_b = StudioAbout.objects.create(profile=self.studio_b, title='About B')
+        member_a = TeamMember.objects.create(profile=self.studio_a, full_name='Miembro A', role='Arq')
+        member_b = TeamMember.objects.create(profile=self.studio_b, full_name='Miembro B', role='Arq')
+
+        req_admin = self.rf.get('/admin/')
+        req_admin.user = self.admin_user
+
+        req_owner_a = self.rf.get('/admin/')
+        req_owner_a.user = self.owner_a
+
+        prof_admin = ProfessionalProfileAdmin(ProfessionalProfile, self.site)
+        proj_admin = ProjectAdmin(Project, self.site)
+        about_admin = StudioAboutAdmin(StudioAbout, self.site)
+        team_admin = TeamMemberAdmin(TeamMember, self.site)
+        brand_admin = BrandAdmin(Brand, self.site)
+
+        # 1. Plataforma ADMIN ve todos los estudios y recursos
+        self.assertEqual(prof_admin.get_queryset(req_admin).count(), 2)
+        self.assertEqual(proj_admin.get_queryset(req_admin).count(), 2)
+        self.assertTrue(prof_admin.has_add_permission(req_admin))
+        self.assertTrue(brand_admin.has_add_permission(req_admin))
+        self.assertTrue(brand_admin.has_change_permission(req_admin))
+        self.assertTrue(brand_admin.has_delete_permission(req_admin))
+
+        # 2. OWNER A solo ve su propio estudio y sus propios proyectos, about y equipo
+        self.assertEqual(list(prof_admin.get_queryset(req_owner_a)), [self.studio_a])
+        self.assertEqual(list(proj_admin.get_queryset(req_owner_a)), [proj_a])
+        self.assertNotIn(proj_b, proj_admin.get_queryset(req_owner_a))
+        self.assertEqual(list(about_admin.get_queryset(req_owner_a)), [about_a])
+        self.assertNotIn(about_b, about_admin.get_queryset(req_owner_a))
+        self.assertEqual(list(team_admin.get_queryset(req_owner_a)), [member_a])
+        self.assertNotIn(member_b, team_admin.get_queryset(req_owner_a))
+
+        # 3. OWNER A no puede crear ni eliminar estudios, ni editar membresías (`users`), ni modificar marcas globales
+        self.assertFalse(prof_admin.has_add_permission(req_owner_a))
+        self.assertFalse(prof_admin.has_delete_permission(req_owner_a, self.studio_a))
+        self.assertIn('users', prof_admin.get_readonly_fields(req_owner_a, self.studio_a))
+        self.assertFalse(brand_admin.has_add_permission(req_owner_a))
+        self.assertFalse(brand_admin.has_change_permission(req_owner_a))
+        self.assertFalse(brand_admin.has_delete_permission(req_owner_a))

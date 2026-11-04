@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import {
+  getProfiles,
   getProjects,
   deleteProject,
   resolveMediaUrl,
@@ -11,7 +12,10 @@ import {
   getAbout,
   createAbout,
   updateAbout,
+  getContacts,
+  deleteContact,
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 function formatCategory(cat) {
@@ -27,13 +31,45 @@ function formatCategory(cat) {
   return labels[cat.toLowerCase()] || cat.replace(/_/g, ' ');
 }
 
+function formatDate(iso) {
+  if (!iso) return 'Reciente';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
 function toList(data) {
   if (Array.isArray(data)) return data;
   return data?.results ?? [];
 }
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('projects'); // 'projects' | 'team' | 'about'
+  const { user } = useAuth();
+  const outletContext = useOutletContext();
+  const contextProfile = outletContext?.studioContext?.profile || null;
+  const setStudioContext = outletContext?.setStudioContext;
+  const selectActiveStudio = outletContext?.selectActiveStudio;
+
+  const role = (user?.role || '').toLowerCase();
+  const isAdmin = role === 'admin';
+  const isAdminOrOwner = role === 'admin' || role === 'owner';
+
+  // Estado de perfiles autorizados y estudio seleccionado
+  const [authorizedProfiles, setAuthorizedProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [errorProfiles, setErrorProfiles] = useState(null);
+
+  const [activeTab, setActiveTab] = useState('projects'); // 'projects' | 'team' | 'about' | 'contacts'
 
   // Proyectos State
   const [projects, setProjects] = useState([]);
@@ -58,80 +94,207 @@ export default function AdminDashboard() {
   const [loadingAbout, setLoadingAbout] = useState(true);
   const [savingAbout, setSavingAbout] = useState(false);
 
+  // Consultas (Contacts) State
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [deletingContactId, setDeletingContactId] = useState(null);
+  const [selectedContact, setSelectedContact] = useState(null);
+
   // Feedback State
   const [feedback, setFeedback] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Load Proyectos
+  // Cargar perfiles autorizados del usuario autenticado
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+
+    async function fetchAuthorizedProfiles() {
+      setLoadingProfiles(true);
+      setErrorProfiles(null);
       try {
-        const res = await getProjects();
+        const res = await getProfiles(isAdmin ? undefined : { mine: 1 });
         if (cancelled) return;
-        setProjects(toList(res.data));
+
+        const list = toList(res.data);
+        setAuthorizedProfiles(list);
+
+        if (list.length === 0) {
+          setSelectedProfileId(null);
+          setProjects([]);
+          setTeam([]);
+          setContacts([]);
+          setAboutRecord(null);
+          return;
+        }
+
+        // Preseleccionar el perfil del contexto únicamente si pertenece a los perfiles autorizados
+        const preferredId = contextProfile?.id ? Number(contextProfile.id) : null;
+        const matched =
+          (preferredId && list.find((p) => Number(p.id) === preferredId)) || list[0];
+
+        setLoadingProjects(true);
+        setLoadingTeam(true);
+        setLoadingAbout(true);
+        setLoadingContacts(true);
+        setSelectedProfileId(Number(matched.id));
+        if (selectActiveStudio) {
+          selectActiveStudio(matched);
+        }
       } catch (err) {
         if (!cancelled) {
-          setErrorProjects(
+          setErrorProfiles(
             err?.response?.data?.detail ||
-            err?.message ||
-            'No se pudieron cargar los proyectos desde el servidor.'
+              err?.message ||
+              'No se pudieron obtener los estudios autorizados.'
           );
         }
       } finally {
-        if (!cancelled) setLoadingProjects(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [reloadKey]);
-
-  // Load Equipo
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await getTeam();
-        if (cancelled) return;
-        setTeam(toList(res.data));
-      } catch (err) {
-        // Silently capture or log
-      } finally {
-        if (!cancelled) setLoadingTeam(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [reloadKey]);
-
-  // Load About
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await getAbout();
-        if (cancelled) return;
-        const list = toList(res.data);
-        if (list.length > 0) {
-          const first = list[0];
-          setAboutRecord(first);
-          setAboutForm({
-            title: first.title || '',
-            description: first.description || '',
-          });
+        if (!cancelled) {
+          setLoadingProfiles(false);
         }
-      } catch (err) {
-        // Silently capture
-      } finally {
-        if (!cancelled) setLoadingAbout(false);
       }
     }
-    load();
-    return () => { cancelled = true; };
-  }, [reloadKey]);
+
+    fetchAuthorizedProfiles();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.username, user?.role, isAdmin]);
+
+  const activeProfile = useMemo(() => {
+    if (!selectedProfileId) return null;
+    return (
+      authorizedProfiles.find((p) => Number(p.id) === Number(selectedProfileId)) || null
+    );
+  }, [authorizedProfiles, selectedProfileId]);
+
+  function handleSelectStudioChange(e) {
+    const nextId = Number(e.target.value);
+    if (!nextId || nextId === selectedProfileId) return;
+
+    // Limpiar inmediatamente los datos del estudio anterior antes de cargar el nuevo
+    setProjects([]);
+    setTeam([]);
+    setContacts([]);
+    setAboutRecord(null);
+    setAboutForm({ title: '', description: '' });
+    setAboutImageFile(null);
+    setLoadingProjects(true);
+    setLoadingTeam(true);
+    setLoadingAbout(true);
+    setLoadingContacts(true);
+    setErrorProjects(null);
+    setFeedback(null);
+    setFilterQuery('');
+    setShowMemberForm(false);
+    setEditingMember(null);
+    setSelectedContact(null);
+
+    setSelectedProfileId(nextId);
+    const targetObj = authorizedProfiles.find((p) => Number(p.id) === nextId);
+    if (targetObj && selectActiveStudio) {
+      selectActiveStudio(targetObj);
+    }
+  }
+
+  // Cargar recursos aislados del estudio seleccionado (`selectedProfileId`)
+  useEffect(() => {
+    if (!selectedProfileId) return;
+    let cancelled = false;
+
+    async function loadStudioDashboardData() {
+      setLoadingProjects(true);
+      setLoadingTeam(true);
+      setLoadingAbout(true);
+      setLoadingContacts(true);
+
+      const query = { profile: selectedProfileId };
+
+      const [projRes, teamRes, aboutRes, contactsRes] = await Promise.allSettled([
+        getProjects(query),
+        getTeam(query),
+        getAbout(query),
+        getContacts(query),
+      ]);
+
+      if (cancelled) return;
+
+      // 1. Proyectos
+      if (projRes.status === 'fulfilled') {
+        setProjects(toList(projRes.value.data));
+        setErrorProjects(null);
+      } else {
+        setProjects([]);
+        setErrorProjects(
+          projRes.reason?.response?.data?.detail ||
+            projRes.reason?.message ||
+            'No se pudieron cargar los proyectos del estudio.'
+        );
+      }
+      setLoadingProjects(false);
+
+      // 2. Equipo
+      if (teamRes.status === 'fulfilled') {
+        setTeam(toList(teamRes.value.data));
+      } else {
+        setTeam([]);
+      }
+      setLoadingTeam(false);
+
+      // 3. Sección Nosotros
+      if (aboutRes.status === 'fulfilled') {
+        const list = toList(aboutRes.value.data);
+        const first = list[0] || null;
+        setAboutRecord(first);
+        setAboutForm({
+          title: first?.title || '',
+          description: first?.description || '',
+        });
+      } else {
+        setAboutRecord(null);
+        setAboutForm({ title: '', description: '' });
+      }
+      setLoadingAbout(false);
+
+      // 4. Consultas
+      if (contactsRes.status === 'fulfilled') {
+        setContacts(toList(contactsRes.value.data));
+      } else {
+        setContacts([]);
+      }
+      setLoadingContacts(false);
+    }
+
+    loadStudioDashboardData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProfileId, reloadKey]);
+
+  // Mantener sincronizados los indicadores `hasAbout` y `hasTeam` del estudio activo en el Layout
+  useEffect(() => {
+    if (!setStudioContext || !activeProfile || loadingTeam || loadingAbout) return;
+    const hasAbout = Boolean(
+      aboutRecord?.title?.trim() ||
+        aboutRecord?.description?.trim() ||
+        aboutRecord?.image ||
+        activeProfile?.description?.trim()
+    );
+    const hasTeam = Array.isArray(team) && team.length > 0;
+    setStudioContext((prev) => ({
+      ...prev,
+      profile: activeProfile,
+      hasAbout,
+      hasTeam,
+    }));
+  }, [setStudioContext, activeProfile, aboutRecord, team, loadingTeam, loadingAbout]);
 
   // Eliminar Proyecto
   async function handleDeleteProject(project) {
+    if (!selectedProfileId) return;
     const confirmed = window.confirm(
       `¿Estás seguro de que deseás eliminar el proyecto "${project.title}"? Esta acción no se puede deshacer.`
     );
@@ -159,9 +322,10 @@ export default function AdminDashboard() {
     }
   }
 
-  // Guardar Miembro de Equipo (Crear o Editar)
+  // Guardar Miembro de Equipo (Crear o Editar asociado a `selectedProfileId`)
   async function handleSaveMember(e) {
     e.preventDefault();
+    if (!selectedProfileId) return;
     if (!memberForm.full_name.trim()) {
       setFeedback({ type: 'warning', message: 'El nombre del integrante es obligatorio.' });
       return;
@@ -171,7 +335,8 @@ export default function AdminDashboard() {
 
     try {
       const data = new FormData();
-      data.append('full_name', memberForm.full_name);
+      data.append('profile', selectedProfileId);
+      data.append('full_name', memberForm.full_name.trim());
       data.append('role', memberForm.role || '');
       data.append('order', memberForm.order || 0);
       if (memberAvatarFile) {
@@ -204,6 +369,7 @@ export default function AdminDashboard() {
 
   // Eliminar Miembro de Equipo
   async function handleDeleteMember(member) {
+    if (!selectedProfileId) return;
     const confirmed = window.confirm(`¿Eliminar a ${member.full_name} del equipo?`);
     if (!confirmed) return;
 
@@ -211,8 +377,8 @@ export default function AdminDashboard() {
     try {
       await deleteTeamMember(member.id);
       setTeam((prev) => prev.filter((m) => m.id !== member.id));
-      setFeedback({ type: 'success', message: `Integrante eliminado exitosamente.` });
-    } catch (err) {
+      setFeedback({ type: 'success', message: 'Integrante eliminado exitosamente.' });
+    } catch {
       setFeedback({ type: 'danger', message: 'Error al eliminar el integrante.' });
     }
   }
@@ -236,14 +402,16 @@ export default function AdminDashboard() {
     setShowMemberForm(false);
   }
 
-  // Guardar Sección Nosotros (About)
+  // Guardar Sección Nosotros (About asociado a `selectedProfileId`)
   async function handleSaveAbout(e) {
     e.preventDefault();
+    if (!selectedProfileId) return;
     setSavingAbout(true);
     setFeedback(null);
 
     try {
       const data = new FormData();
+      data.append('profile', selectedProfileId);
       data.append('title', aboutForm.title);
       data.append('description', aboutForm.description);
       if (aboutImageFile) {
@@ -270,6 +438,36 @@ export default function AdminDashboard() {
     }
   }
 
+  // Eliminar Consulta del estudio
+  async function handleDeleteContact(contact) {
+    if (!selectedProfileId) return;
+    const confirmed = window.confirm(
+      `¿Deseás eliminar la consulta de ${contact.name}? Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setDeletingContactId(contact.id);
+    setFeedback(null);
+    try {
+      await deleteContact(contact.id);
+      setContacts((prev) => prev.filter((c) => c.id !== contact.id));
+      if (selectedContact?.id === contact.id) {
+        setSelectedContact(null);
+      }
+      setFeedback({
+        type: 'success',
+        message: 'La consulta fue eliminada correctamente.',
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'danger',
+        message: err?.response?.data?.detail || 'No se pudo eliminar la consulta.',
+      });
+    } finally {
+      setDeletingContactId(null);
+    }
+  }
+
   // Filtro de proyectos
   const filteredProjects = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
@@ -282,24 +480,157 @@ export default function AdminDashboard() {
     );
   }, [projects, filterQuery]);
 
+  if (loadingProfiles) {
+    return (
+      <div className="container py-5 text-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (errorProfiles) {
+    return (
+      <div className="container py-5 my-4 text-center">
+        <div
+          className="mx-auto p-4 p-md-5 rounded-4 border"
+          style={{ maxWidth: '580px', background: '#fff' }}
+        >
+          <h1 className="h5 fw-bold text-danger mb-2">Error al cargar estudios autorizados</h1>
+          <p className="text-muted small mb-3">{errorProfiles}</p>
+          <button
+            type="button"
+            className="btn btn-dark rounded-pill px-4"
+            onClick={() => setReloadKey((k) => k + 1)}
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (authorizedProfiles.length === 0 || !activeProfile) {
+    return (
+      <div className="container py-5 my-4 text-center">
+        <div
+          className="mx-auto p-4 p-md-5 rounded-4 border"
+          style={{
+            maxWidth: '580px',
+            background: '#fff',
+            borderColor: 'rgba(15, 27, 42, 0.12)',
+          }}
+        >
+          <span className="badge bg-secondary rounded-pill px-3 py-1 mb-3 text-uppercase">
+            Sin Estudio Asignado
+          </span>
+          <h1 className="h4 fw-bold mb-2">No tenés estudios autorizados para administrar</h1>
+          <p className="text-muted small mb-4">
+            Tu usuario (<strong>{user?.username}</strong>) no se encuentra asociado actualmente a ningún perfil de estudio activo. Solicitá al administrador de la plataforma que te asigne un estudio para habilitar las herramientas de gestión.
+          </p>
+          <Link to="/" className="btn btn-outline-dark rounded-pill px-4">
+            Volver al inicio
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-4 py-md-5">
+      {/* Barra de Estudio Activo / Selector de Estudio */}
+      <div
+        className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 p-md-4 mb-4 rounded-4"
+        style={{
+          background: '#fff',
+          border: '1px solid rgba(15, 27, 42, 0.1)',
+          boxShadow: 'var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.04))',
+        }}
+      >
+        <div className="d-flex align-items-center gap-3">
+          <div
+            className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0"
+            style={{
+              width: '46px',
+              height: '46px',
+              background: 'var(--color-ink, #0f172a)',
+              fontSize: '0.95rem',
+              letterSpacing: '0.05em',
+            }}
+          >
+            {(activeProfile.name || 'VT').slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <span className="text-uppercase fw-bold text-muted" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>
+                Estudio Activo
+              </span>
+              <span className="badge bg-light text-dark border rounded-pill" style={{ fontSize: '0.7rem' }}>
+                /estudios/{activeProfile.slug}
+              </span>
+            </div>
+            <h2 className="h5 fw-bold mb-0" style={{ color: 'var(--color-ink)' }}>
+              {activeProfile.name}
+            </h2>
+          </div>
+        </div>
+
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {authorizedProfiles.length > 1 && (
+            <div className="d-flex align-items-center gap-2">
+              <label
+                htmlFor="dashboardStudioSelector"
+                className="small fw-semibold text-muted text-nowrap mb-0"
+              >
+                Cambiar estudio:
+              </label>
+              <select
+                id="dashboardStudioSelector"
+                className="form-select form-select-sm rounded-pill px-3 py-2 fw-semibold"
+                style={{
+                  minWidth: '210px',
+                  borderColor: 'rgba(15, 23, 42, 0.22)',
+                  color: 'var(--color-ink)',
+                }}
+                value={selectedProfileId}
+                onChange={handleSelectStudioChange}
+                aria-label="Seleccionar estudio activo"
+              >
+                {authorizedProfiles.map((prof) => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.name} ({prof.slug})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <Link
+            to={`/estudios/${activeProfile.slug}`}
+            className="btn btn-outline-dark btn-sm rounded-pill px-3 py-2 fw-semibold"
+          >
+            Ver Portfolio Público →
+          </Link>
+        </div>
+      </div>
+
       {/* Header General */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
         <div>
           <span className="badge bg-dark rounded-pill px-3 py-1 mb-2 text-uppercase letter-spacing-1">
-            Panel de Administración
+            Panel de Administración · {activeProfile.name}
           </span>
           <h1 className="h3 fw-bold mb-1" style={{ color: 'var(--color-ink)' }}>
-            Gestión Integral del Estudio
+            Gestión Integral — {activeProfile.name}
           </h1>
           <p className="text-muted small mb-0">
-            Administra proyectos, catálogo técnico de planos, integrantes del equipo y contenido institucional.
+            {isAdminOrOwner
+              ? `Mostrando exclusivamente proyectos, equipo, contenido institucional y consultas de ${activeProfile.name}.`
+              : `Colaborador técnico en ${activeProfile.name}: podés editar proyectos y gestionar renders y planos técnicos.`}
           </p>
         </div>
 
-        {activeTab === 'projects' && (
-          <div>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {activeTab === 'projects' && isAdminOrOwner && (
             <Link
               to="/admin/proyectos/nuevo"
               className="btn btn-dark rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2"
@@ -310,11 +641,9 @@ export default function AdminDashboard() {
               </svg>
               Nuevo Proyecto
             </Link>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'team' && !showMemberForm && (
-          <div>
+          {activeTab === 'team' && isAdminOrOwner && !showMemberForm && (
             <button
               type="button"
               className="btn btn-dark rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2"
@@ -331,8 +660,8 @@ export default function AdminDashboard() {
               </svg>
               Nuevo Integrante
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Tabs de Navegación */}
@@ -343,25 +672,38 @@ export default function AdminDashboard() {
             className={`nav-link rounded-pill px-4 py-2 fw-semibold ${activeTab === 'projects' ? 'active bg-dark text-white' : 'text-dark'}`}
             onClick={() => setActiveTab('projects')}
           >
-            Proyectos ({projects.length})
+            Proyectos ({loadingProjects ? '…' : projects.length})
           </button>
         </li>
+        {isAdminOrOwner && (
+          <>
+            <li className="nav-item">
+              <button
+                type="button"
+                className={`nav-link rounded-pill px-4 py-2 fw-semibold ${activeTab === 'team' ? 'active bg-dark text-white' : 'text-dark'}`}
+                onClick={() => setActiveTab('team')}
+              >
+                Nuestro Equipo ({loadingTeam ? '…' : team.length})
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                type="button"
+                className={`nav-link rounded-pill px-4 py-2 fw-semibold ${activeTab === 'about' ? 'active bg-dark text-white' : 'text-dark'}`}
+                onClick={() => setActiveTab('about')}
+              >
+                Sección Nosotros
+              </button>
+            </li>
+          </>
+        )}
         <li className="nav-item">
           <button
             type="button"
-            className={`nav-link rounded-pill px-4 py-2 fw-semibold ${activeTab === 'team' ? 'active bg-dark text-white' : 'text-dark'}`}
-            onClick={() => setActiveTab('team')}
+            className={`nav-link rounded-pill px-4 py-2 fw-semibold ${activeTab === 'contacts' ? 'active bg-dark text-white' : 'text-dark'}`}
+            onClick={() => setActiveTab('contacts')}
           >
-            Nuestro Equipo ({team.length})
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link rounded-pill px-4 py-2 fw-semibold ${activeTab === 'about' ? 'active bg-dark text-white' : 'text-dark'}`}
-            onClick={() => setActiveTab('about')}
-          >
-            Sección Nosotros
+            Consultas ({loadingContacts ? '…' : contacts.length})
           </button>
         </li>
       </ul>
@@ -417,16 +759,18 @@ export default function AdminDashboard() {
                   <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                 </svg>
               </div>
-              <h2 className="h5 fw-bold mb-2">No hay proyectos registrados</h2>
+              <h2 className="h5 fw-bold mb-2">No hay proyectos registrados en {activeProfile.name}</h2>
               <p className="text-muted small mb-4" style={{ maxWidth: '420px', margin: '0 auto' }}>
-                Aún no has creado proyectos en el sistema. Comienza cargando tu primera obra.
+                Aún no se han cargado proyectos para este estudio.
               </p>
-              <Link
-                to="/admin/proyectos/nuevo"
-                className="btn btn-dark rounded-pill px-4 py-2 fw-semibold"
-              >
-                Crear primer proyecto
-              </Link>
+              {isAdminOrOwner && (
+                <Link
+                  to="/admin/proyectos/nuevo"
+                  className="btn btn-dark rounded-pill px-4 py-2 fw-semibold"
+                >
+                  Crear primer proyecto
+                </Link>
+              )}
             </div>
           ) : (
             <>
@@ -451,7 +795,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
                 <span className="text-muted small">
-                  Total: <strong>{filteredProjects.length}</strong> de {projects.length} proyectos
+                  Estudio <strong>{activeProfile.name}</strong>: <strong>{filteredProjects.length}</strong> de {projects.length} proyectos
                 </span>
               </div>
 
@@ -473,6 +817,7 @@ export default function AdminDashboard() {
                     {filteredProjects.map((project) => {
                       const cover = resolveMediaUrl(project.cover_image || project.coverImage);
                       const isDeleting = deletingId === project.id;
+                      const detailUrl = `/estudios/${encodeURIComponent(activeProfile.slug)}/proyecto/${project.id}`;
 
                       return (
                         <tr key={project.id}>
@@ -514,7 +859,7 @@ export default function AdminDashboard() {
                           <td className="text-end" style={{ paddingRight: '1.25rem' }}>
                             <div className="btn-group btn-group-sm">
                               <Link
-                                to={`/proyecto/${project.id}`}
+                                to={detailUrl}
                                 className="btn btn-outline-secondary rounded-start-pill px-3"
                                 title="Ver en pantalla inmersiva"
                               >
@@ -522,20 +867,22 @@ export default function AdminDashboard() {
                               </Link>
                               <Link
                                 to={`/admin/proyectos/${project.id}/editar`}
-                                className="btn btn-outline-dark px-3"
-                                title="Editar proyecto"
+                                className={`btn btn-outline-dark px-3 ${!isAdminOrOwner ? 'rounded-end-pill' : ''}`}
+                                title="Editar proyecto y archivos"
                               >
                                 Editar
                               </Link>
-                              <button
-                                type="button"
-                                className="btn btn-outline-danger rounded-end-pill px-3"
-                                onClick={() => handleDeleteProject(project)}
-                                disabled={isDeleting}
-                                title="Eliminar proyecto"
-                              >
-                                {isDeleting ? '...' : 'Eliminar'}
-                              </button>
+                              {isAdminOrOwner && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-danger rounded-end-pill px-3"
+                                  onClick={() => handleDeleteProject(project)}
+                                  disabled={isDeleting}
+                                  title="Eliminar proyecto"
+                                >
+                                  {isDeleting ? '...' : 'Eliminar'}
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -552,14 +899,15 @@ export default function AdminDashboard() {
       {/* ============================================================== */}
       {/* TAB 2: NUESTRO EQUIPO */}
       {/* ============================================================== */}
-      {activeTab === 'team' && (
+      {activeTab === 'team' && isAdminOrOwner && (
         <div>
-          {/* Formulario de Alta / Edición de Integrante */}
           {showMemberForm && (
             <div className="card border-0 shadow-sm rounded-4 mb-4 p-4" style={{ background: '#fff' }}>
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h2 className="h5 fw-bold mb-0">
-                  {editingMember ? `Editar Integrante: ${editingMember.full_name}` : 'Nuevo Integrante del Estudio'}
+                  {editingMember
+                    ? `Editar Integrante: ${editingMember.full_name}`
+                    : `Nuevo Integrante — ${activeProfile.name}`}
                 </h2>
                 <button
                   type="button"
@@ -647,7 +995,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Grilla / Lista de Miembros Actuales */}
           {loadingTeam ? (
             <div className="text-center py-5">
               <LoadingSpinner />
@@ -657,9 +1004,9 @@ export default function AdminDashboard() {
               className="text-center py-5 px-3 rounded-4"
               style={{ background: '#fff', border: '1px dashed rgba(15,27,42,0.18)' }}
             >
-              <h2 className="h5 fw-bold mb-2">No hay integrantes registrados en el equipo</h2>
+              <h2 className="h5 fw-bold mb-2">No hay integrantes registrados en {activeProfile.name}</h2>
               <p className="text-muted small mb-4" style={{ maxWidth: '420px', margin: '0 auto' }}>
-                Configura los miembros que se presentarán en la sección "Equipo" de la Home.
+                Configura los miembros que se presentarán en la sección &ldquo;Equipo&rdquo; del portfolio de {activeProfile.name}.
               </p>
               <button
                 type="button"
@@ -692,12 +1039,13 @@ export default function AdminDashboard() {
                 <tbody>
                   {team.map((member) => {
                     const avatarUrl = resolveMediaUrl(member.avatar);
-                    const initials = (member.full_name || '')
-                      .split(' ')
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((p) => p[0]?.toUpperCase())
-                      .join('') || 'EQ';
+                    const initials =
+                      (member.full_name || '')
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((p) => p[0]?.toUpperCase())
+                        .join('') || 'EQ';
 
                     return (
                       <tr key={member.id}>
@@ -764,12 +1112,14 @@ export default function AdminDashboard() {
       {/* ============================================================== */}
       {/* TAB 3: SECCIÓN NOSOTROS */}
       {/* ============================================================== */}
-      {activeTab === 'about' && (
+      {activeTab === 'about' && isAdminOrOwner && (
         <div className="card border-0 shadow-sm rounded-4 p-4" style={{ background: '#fff' }}>
           <div className="mb-4">
-            <h2 className="h5 fw-bold mb-1">Configuración de la Sección Institucional</h2>
+            <h2 className="h5 fw-bold mb-1">
+              Configuración Institucional — {activeProfile.name}
+            </h2>
             <p className="text-muted small mb-0">
-              Modifica el título, el manifiesto y el boceto arquitectónico lateral que se muestra en la sección "Nosotros".
+              Modifica el título, el manifiesto y el boceto arquitectónico lateral que se muestra en la sección &ldquo;Nosotros&rdquo; de {activeProfile.name}.
             </p>
           </div>
 
@@ -845,6 +1195,159 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 4: CONSULTAS DEL ESTUDIO */}
+      {/* ============================================================== */}
+      {activeTab === 'contacts' && (
+        <div>
+          {loadingContacts ? (
+            <div className="text-center py-5">
+              <LoadingSpinner />
+            </div>
+          ) : contacts.length === 0 ? (
+            <div
+              className="text-center py-5 px-3 rounded-4"
+              style={{ background: '#fff', border: '1px dashed rgba(15,27,42,0.18)' }}
+            >
+              <h2 className="h5 fw-bold mb-2">No hay consultas registradas en {activeProfile.name}</h2>
+              <p className="text-muted small mb-0" style={{ maxWidth: '420px', margin: '0 auto' }}>
+                Las consultas y solicitudes de presupuesto enviadas a {activeProfile.name} aparecerán aquí.
+              </p>
+            </div>
+          ) : (
+            <div
+              className="table-responsive rounded-4 shadow-sm"
+              style={{ background: '#fff', border: '1px solid rgba(15, 27, 42, 0.08)' }}
+            >
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr style={{ fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    <th scope="col" className="py-3 px-3">Fecha</th>
+                    <th scope="col" className="py-3 px-3">Remitente</th>
+                    <th scope="col" className="py-3 px-3">Mensaje</th>
+                    <th scope="col" className="py-3 px-3 text-end">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contacts.map((c) => (
+                    <tr key={c.id}>
+                      <td className="px-3 small text-muted text-nowrap">
+                        {formatDate(c.created_at)}
+                      </td>
+                      <td className="px-3">
+                        <div className="fw-semibold small">{c.name}</div>
+                        <div className="small text-muted">{c.email}</div>
+                      </td>
+                      <td className="px-3 small text-muted" style={{ maxWidth: '340px' }}>
+                        <div
+                          className="text-truncate"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setSelectedContact(c)}
+                          title={c.message}
+                        >
+                          {c.message}
+                        </div>
+                      </td>
+                      <td className="px-3 text-end text-nowrap">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-dark rounded-pill px-3 me-1"
+                          onClick={() => setSelectedContact(c)}
+                        >
+                          Ver
+                        </button>
+                        {isAdminOrOwner && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger rounded-pill px-2"
+                            disabled={deletingContactId === c.id}
+                            onClick={() => handleDeleteContact(c)}
+                            title="Eliminar consulta"
+                          >
+                            {deletingContactId === c.id ? '...' : '✕'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {selectedContact && (
+            <div
+              className="modal d-block"
+              tabIndex="-1"
+              style={{ background: 'rgba(15, 27, 42, 0.65)' }}
+              onClick={() => setSelectedContact(null)}
+            >
+              <div
+                className="modal-dialog modal-dialog-centered"
+                style={{ maxWidth: '560px' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-content rounded-4 border-0 p-3 p-md-4">
+                  <div className="modal-header border-0 pb-0">
+                    <div>
+                      <span
+                        className="badge rounded-pill mb-1 px-3 py-1 fw-bold text-uppercase"
+                        style={{ background: '#e9ecef', color: '#495057', fontSize: '0.68rem' }}
+                      >
+                        CONSULTA #{selectedContact.id} · {activeProfile.name}
+                      </span>
+                      <h3 className="h5 fw-bold mb-0">Detalle de la Consulta</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      aria-label="Cerrar"
+                      onClick={() => setSelectedContact(null)}
+                    />
+                  </div>
+                  <div className="modal-body py-3">
+                    <div className="p-3 bg-light rounded-3 mb-3 small d-flex flex-column gap-1">
+                      <div>
+                        <strong>Fecha:</strong> {formatDate(selectedContact.created_at)}
+                      </div>
+                      <div>
+                        <strong>Estudio:</strong> {activeProfile.name}
+                      </div>
+                      <div>
+                        <strong>Remitente:</strong> {selectedContact.name} ({selectedContact.email})
+                      </div>
+                    </div>
+                    <div
+                      className="p-3 rounded-3"
+                      style={{
+                        background: '#f8f9fa',
+                        border: '1px solid rgba(15, 27, 42, 0.08)',
+                        whiteSpace: 'pre-wrap',
+                        fontSize: '0.88rem',
+                        lineHeight: 1.6,
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {selectedContact.message}
+                    </div>
+                  </div>
+                  <div className="modal-footer border-0 pt-0 justify-content-end">
+                    <button
+                      type="button"
+                      className="btn btn-dark rounded-pill px-4 fw-semibold"
+                      onClick={() => setSelectedContact(null)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

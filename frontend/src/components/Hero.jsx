@@ -13,10 +13,11 @@ function VerticeMark() {
 }
 
 export default function Hero({ profile }) {
-  const [brokenMedia, setBrokenMedia] = useState(false);
+  const [failedUrl, setFailedUrl] = useState(null);
   const avatarUrl = resolveMediaUrl(profile?.avatar);
-  const heroImage = (!brokenMedia && avatarUrl) ? avatarUrl : studio.heroImage;
-  const studioTitle = profile?.name || studio.name || 'VÉRTICE';
+  const heroImage = avatarUrl && failedUrl !== avatarUrl ? avatarUrl : studio.heroImage;
+  const studioTitle = profile?.name || studio.platformName || 'VÉRTICE';
+  const specialty = profile?.specialty?.trim() || '';
 
   return (
     <section id="inicio" className="vertice-hero">
@@ -24,7 +25,9 @@ export default function Hero({ profile }) {
         <img
           src={heroImage}
           alt=""
-          onError={() => setBrokenMedia(true)}
+          onError={() => {
+            if (avatarUrl) setFailedUrl(avatarUrl);
+          }}
         />
         <span className="vertice-hero__wash" />
       </div>
@@ -36,6 +39,19 @@ export default function Hero({ profile }) {
           </span>
           <div className="vertice-hero__titles">
             <h1 className="vertice-hero__title">{studioTitle.toUpperCase()}</h1>
+            {specialty && (
+              <p
+                className="mb-0 mt-1"
+                style={{
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  fontSize: '0.85rem',
+                  opacity: 0.85,
+                }}
+              >
+                {specialty}
+              </p>
+            )}
           </div>
         </div>
 

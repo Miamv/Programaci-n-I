@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 
 const DRAG_THRESHOLD = 40;
 
@@ -50,6 +51,15 @@ export default function ProjectSheet({ project, state, onCollapse }) {
   const description = project.memoriaDescriptiva || project.description || '';
   const specs = project.specs;
 
+  const quoteParams = new URLSearchParams();
+  if (project.profile_slug) {
+    quoteParams.set('studio', project.profile_slug);
+  }
+  if (project.id) {
+    quoteParams.set('project', String(project.id));
+  }
+  const quoteUrl = `/solicitud?${quoteParams.toString()}`;
+
   return (
     <>
       <div
@@ -76,6 +86,16 @@ export default function ProjectSheet({ project, state, onCollapse }) {
           <h2 className="pv-sheet__title">{title}</h2>
           {subtitle && <p className="pv-sheet__subtitle">{subtitle}</p>}
           {description && <p className="pv-sheet__body">{description}</p>}
+          {project.id && (
+            <div className="mt-3">
+              <Link
+                to={quoteUrl}
+                className="btn btn-sm btn-outline-light rounded-pill px-3 py-1"
+              >
+                Solicitar presupuesto por esta obra →
+              </Link>
+            </div>
+          )}
         </div>
 
         {specs && (

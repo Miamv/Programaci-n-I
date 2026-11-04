@@ -19,8 +19,9 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            {/* Rutas Públicas */}
+            {/* Rutas Públicas (Raíz y Plantilla Multiestudio por Slug) */}
             <Route index element={<Home />} />
+            <Route path="estudios/:slug" element={<Home />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Navigate to="/registro" replace />} />
             <Route path="registro" element={<Register />} />
@@ -32,7 +33,7 @@ function App() {
               <Route path="solicitud" element={<QuoteRequest />} />
             </Route>
 
-            {/* Rutas de Administración Protegidas por Rol (ADMIN / OWNER) */}
+            {/* Rutas de Administración Protegidas por Rol */}
             <Route element={<AdminRoute />}>
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/proyectos" element={<AdminDashboard />} />
@@ -42,6 +43,7 @@ function App() {
           </Route>
 
           {/* Vista inmersiva: pantalla completa, sin Navbar/Footer ni scroll de página */}
+          <Route path="estudios/:slug/proyecto/:id" element={<ProjectDetail />} />
           <Route path="proyecto/:id" element={<ProjectDetail />} />
         </Routes>
       </BrowserRouter>

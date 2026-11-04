@@ -31,11 +31,14 @@ function AvatarPlaceholder({ name }) {
   );
 }
 
-export default function Team({ members = [], profiles = [], error }) {
-  // Priorizar miembros dedicados de la entidad TeamMember; fallback a profiles si aún no hay miembros
-  const rawList = Array.isArray(members) && members.length > 0 ? members : (Array.isArray(profiles) ? profiles : []);
-  const teamList = rawList;
+export default function Team({ members = [], error }) {
+  const teamList = Array.isArray(members) ? members : [];
   const hasMembers = teamList.length > 0;
+
+  // Ocultar la sección opcional cuando el estudio no tiene integrantes cargados ni error
+  if (!hasMembers && !error) {
+    return null;
+  }
 
   return (
     <section id="equipo" className="vertice-team">
@@ -43,7 +46,7 @@ export default function Team({ members = [], profiles = [], error }) {
         <h3 className="vertice-team__title">Nuestro equipo</h3>
         {!hasMembers ? (
           <p className="vertice-team__empty text-muted small">
-            {error ? `No se pudo cargar el equipo. ${error}` : 'Aún no hay miembros del equipo registrados.'}
+            {`No se pudo cargar el equipo. ${error}`}
           </p>
         ) : (
           <div className="vertice-team__grid">

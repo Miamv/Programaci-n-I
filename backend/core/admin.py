@@ -48,18 +48,77 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
+def _is_platform_admin(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and (user.is_superuser or getattr(user, 'role', None) == User.RoleChoices.ADMIN)
+    )
+
+
+class StudioScopedAdminMixin:
+    """
+    Aísla en Django Admin los registros y selectores ForeignKey para que usuarios
+    no administradores de plataforma (ej. OWNER con acceso staff) solo vean y
+    administren recursos pertenecientes a sus propios estudios (ProfessionalProfile).
+    """
+    profile_lookup = 'profile'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if _is_platform_admin(request.user):
+            return qs
+        return qs.filter(**{f'{self.profile_lookup}__users': request.user}).distinct()
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if not _is_platform_admin(request.user):
+            if db_field.name == 'profile':
+                kwargs['queryset'] = ProfessionalProfile.objects.filter(users=request.user).distinct()
+            elif db_field.name == 'project':
+                kwargs['queryset'] = Project.objects.filter(profile__users=request.user).distinct()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
 
+    def has_add_permission(self, request):
+        return _is_platform_admin(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return _is_platform_admin(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return _is_platform_admin(request.user)
+
 
 @admin.register(ProfessionalProfile)
 class ProfessionalProfileAdmin(admin.ModelAdmin):
-    list_display = ('name', 'specialty', 'contact_email', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('name', 'users__username', 'users__email')
+    list_display = ('name', 'slug', 'specialty', 'contact_email', 'phone', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name', 'slug', 'users__username', 'users__email')
+    prepopulated_fields = {'slug': ('name',)}
     filter_horizontal = ('users',)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if _is_platform_admin(request.user):
+            return qs
+        return qs.filter(users=request.user).distinct()
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        if not _is_platform_admin(request.user) and 'users' not in readonly:
+            readonly.append('users')
+        return tuple(readonly)
+
+    def has_add_permission(self, request):
+        return _is_platform_admin(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return _is_platform_admin(request.user)
 
 
 class MediaInline(admin.TabularInline):
@@ -79,7 +138,7 @@ class MediaInline(admin.TabularInline):
 
 
 @admin.register(Project)
-class ProjectAdmin(admin.ModelAdmin):
+class ProjectAdmin(StudioScopedAdminMixin, admin.ModelAdmin):
     list_display = ('title', 'profile', 'category', 'created_at')
     list_filter = ('profile', 'category', 'created_at')
     search_fields = ('title',)
@@ -88,7 +147,8 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 @admin.register(Media)
-class MediaAdmin(admin.ModelAdmin):
+class MediaAdmin(StudioScopedAdminMixin, admin.ModelAdmin):
+    profile_lookup = 'project__profile'
     list_display = ('project', 'preview', 'media_type', 'zone', 'plan_type')
     list_filter = ('media_type', 'zone', 'plan_type')
     readonly_fields = ('preview',)
@@ -104,21 +164,21 @@ class MediaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Contact)
-class ContactAdmin(admin.ModelAdmin):
+class ContactAdmin(StudioScopedAdminMixin, admin.ModelAdmin):
     list_display = ('name', 'profile', 'created_at')
-    list_filter = ('created_at',)
+    list_filter = ('profile', 'created_at')
     search_fields = ('name', 'email')
 
 
 @admin.register(StudioAbout)
-class StudioAboutAdmin(admin.ModelAdmin):
+class StudioAboutAdmin(StudioScopedAdminMixin, admin.ModelAdmin):
     list_display = ('title', 'profile', 'updated_at')
     list_filter = ('profile',)
     search_fields = ('title', 'description')
 
 
 @admin.register(TeamMember)
-class TeamMemberAdmin(admin.ModelAdmin):
+class TeamMemberAdmin(StudioScopedAdminMixin, admin.ModelAdmin):
     list_display = ('full_name', 'role', 'profile', 'order', 'preview')
     list_editable = ('order',)
     list_filter = ('profile',)
