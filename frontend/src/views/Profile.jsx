@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -22,6 +22,8 @@ function formatDate(iso) {
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
+  const outletContext = useOutletContext();
+  const activeProfile = outletContext?.studioContext?.profile || null;
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -174,7 +176,7 @@ export default function Profile() {
   }
 
   const role = accountMeta.role.toLowerCase();
-  const isAdminOrOwner = role === 'admin' || role === 'owner';
+  const canAccessPanel = role === 'admin' || role === 'owner' || role === 'collaborator';
 
   return (
     <div className="container py-5 my-md-4" style={{ maxWidth: '820px' }}>
@@ -198,7 +200,7 @@ export default function Profile() {
           <Link to="/solicitudes" className="btn btn-outline-dark btn-sm rounded-pill px-3">
             Mis Solicitudes
           </Link>
-          {isAdminOrOwner && (
+          {canAccessPanel && (
             <Link to="/admin" className="btn btn-dark btn-sm rounded-pill px-3">
               Panel Admin
             </Link>
@@ -251,8 +253,8 @@ export default function Profile() {
               <span
                 className="badge rounded-pill px-3 py-1 text-uppercase fw-bold"
                 style={{
-                  background: isAdminOrOwner ? '#0f1b2a' : '#e9ecef',
-                  color: isAdminOrOwner ? '#fff' : '#495057',
+                  background: canAccessPanel ? '#0f1b2a' : '#e9ecef',
+                  color: canAccessPanel ? '#fff' : '#495057',
                   fontSize: '0.7rem',
                   letterSpacing: '0.08em',
                 }}
@@ -268,15 +270,21 @@ export default function Profile() {
                 <strong className="text-dark d-block">Identificador de cuenta:</strong>
                 <span>@{accountMeta.username}</span>
               </div>
+              {activeProfile && (role === 'owner' || role === 'collaborator') && (
+                <div>
+                  <strong className="text-dark d-block">Estudio asociado:</strong>
+                  <span>{activeProfile.name}</span>
+                </div>
+              )}
               <div>
                 <strong className="text-dark d-block">Tipo de permisos:</strong>
                 <span className="text-capitalize">
                   {role === 'admin'
-                    ? 'Acceso total a proyectos y administración del sistema'
+                    ? 'Acceso total a estudios, proyectos y administración del sistema'
                     : role === 'owner'
-                    ? 'Propietario de perfil y gestión de proyectos asociados'
+                    ? 'Propietario de estudio y gestión integral de su portfolio'
                     : role === 'collaborator'
-                    ? 'Colaborador técnico de proyectos'
+                    ? 'Colaborador técnico de proyectos y planos de su estudio'
                     : 'Visor registrado (exploración y envío de solicitudes)'}
                 </span>
               </div>

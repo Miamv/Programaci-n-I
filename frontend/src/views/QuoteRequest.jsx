@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, useOutletContext, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getProfiles, getProject, sendContact } from '../services/api';
+import { getProfileBySlug, getProfiles, getProject, sendContact } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const SERVICES = [
@@ -13,22 +13,38 @@ const SERVICES = [
   'Otro requerimiento personalizado',
 ];
 
+function toList(data) {
+  if (Array.isArray(data)) return data;
+  return data?.results ?? [];
+}
+
 export default function QuoteRequest() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project');
+  const studioParam =
+    searchParams.get('studio') ||
+    searchParams.get('profile_slug') ||
+    searchParams.get('profile') ||
+    '';
+  const projectId = searchParams.get('project') || '';
+
+  const outletContext = useOutletContext();
+  const activeStudio = outletContext?.studioContext?.profile || null;
+  const isAdmin = user?.role === 'admin';
 
   const [profiles, setProfiles] = useState([]);
+  const [resolvedStudio, setResolvedStudio] = useState(null);
   const [referencedProject, setReferencedProject] = useState(null);
+  const [relationError, setRelationError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successData, setSuccessData] = useState(null);
 
   const [formData, setFormData] = useState({
-    profile: '',
-    name: user?.username ? (user.username.charAt(0).toUpperCase() + user.username.slice(1)) : '',
+    profile: activeStudio?.id || '',
+    name: user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : '',
     email: user?.email || '',
     serviceType: SERVICES[0],
     scope: '',
@@ -41,32 +57,118 @@ export default function QuoteRequest() {
     let cancelled = false;
 
     async function init() {
+      setLoading(true);
+      setError(null);
+      setRelationError(null);
+      setReferencedProject(null);
+      setResolvedStudio(null);
+
       try {
-        const [profilesRes, projRes] = await Promise.all([
-          getProfiles(),
-          projectId ? getProject(projectId) : Promise.resolve(null),
-        ]);
+        let studioFromParam = null;
+        let projectObj = null;
+
+        // 1. Si se proporcionó `studio` en la URL (?studio=<slug|id>), resolverlo en el backend
+        if (studioParam) {
+          try {
+            const stRes = await getProfileBySlug(studioParam);
+            studioFromParam = stRes.data;
+          } catch {
+            if (!cancelled) {
+              setRelationError(
+                `El estudio indicado ("${studioParam}") no existe o no se encuentra disponible.`
+              );
+              setLoading(false);
+            }
+            return;
+          }
+        }
+
+        // 2. Si se proporcionó `project` en la URL (?project=<id>), resolverlo y verificar consistencia
+        if (projectId) {
+          try {
+            const prRes = await getProject(projectId);
+            projectObj = prRes.data;
+          } catch {
+            if (!cancelled) {
+              setRelationError(
+                `El proyecto de referencia (#${projectId}) no existe o no se encuentra disponible.`
+              );
+              setLoading(false);
+            }
+            return;
+          }
+        }
 
         if (cancelled) return;
 
-        const pData = Array.isArray(profilesRes.data) ? profilesRes.data : (profilesRes.data?.results ?? []);
-        setProfiles(pData);
+        // 3. Si ambos parámetros están presentes, verificar que el proyecto pertenezca al estudio indicado
+        if (studioFromParam && projectObj) {
+          const belongsToStudio =
+            Number(projectObj.profile) === Number(studioFromParam.id) ||
+            (projectObj.profile_slug && projectObj.profile_slug === studioFromParam.slug);
 
-        if (projRes?.data) {
-          setReferencedProject(projRes.data);
-          // Si el proyecto tiene un profile asociado, preseleccionarlo
-          if (projRes.data.profile) {
-            setFormData((prev) => ({ ...prev, profile: projRes.data.profile }));
+          if (!belongsToStudio) {
+            setReferencedProject(projectObj);
+            setResolvedStudio(studioFromParam);
+            setRelationError(
+              `El proyecto "${projectObj.title}" no pertenece al estudio "${studioFromParam.name}". No es posible enviar una solicitud con relaciones inconsistentes.`
+            );
+            setLoading(false);
+            return;
           }
-        } else if (pData.length > 0) {
-          setFormData((prev) => ({ ...prev, profile: prev.profile || pData[0].id }));
+        }
+
+        // 4. Si sólo vino `project` sin `studio`, resolver el perfil del estudio propietario del proyecto
+        if (!studioFromParam && projectObj) {
+          const lookup = projectObj.profile_slug || projectObj.profile;
+          if (lookup) {
+            try {
+              const stRes = await getProfileBySlug(lookup);
+              studioFromParam = stRes.data;
+            } catch {
+              // Fallback si solo tenemos ID y nombre en projectObj
+              studioFromParam = {
+                id: projectObj.profile,
+                name: projectObj.profile_name || `Estudio #${projectObj.profile}`,
+                slug: projectObj.profile_slug || '',
+              };
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        // 5. Determinar estudio objetivo y opciones disponibles
+        const targetStudio = studioFromParam || activeStudio || null;
+
+        if (targetStudio && !isAdmin) {
+          setProfiles([targetStudio]);
+          setResolvedStudio(targetStudio);
+          setReferencedProject(projectObj);
+          setFormData((prev) => ({ ...prev, profile: targetStudio.id }));
+        } else {
+          const profilesRes = await getProfiles();
+          if (cancelled) return;
+          const pData = toList(profilesRes.data);
+          const mergedProfiles =
+            targetStudio && !pData.some((p) => Number(p.id) === Number(targetStudio.id))
+              ? [targetStudio, ...pData]
+              : pData;
+
+          setProfiles(mergedProfiles);
+          const chosen = targetStudio || mergedProfiles[0] || null;
+          setResolvedStudio(chosen);
+          setReferencedProject(projectObj);
+          if (chosen?.id) {
+            setFormData((prev) => ({ ...prev, profile: chosen.id }));
+          }
         }
       } catch (err) {
         if (!cancelled) {
           setError(
             err?.response?.data?.detail ||
-            err?.message ||
-            'No se pudieron cargar los datos necesarios para iniciar la solicitud.'
+              err?.message ||
+              'No se pudieron cargar los datos necesarios para iniciar la solicitud.'
           );
         }
       } finally {
@@ -81,7 +183,17 @@ export default function QuoteRequest() {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [studioParam, projectId, isAdmin, activeStudio]);
+
+  const currentStudioObj =
+    profiles.find((p) => Number(p.id) === Number(formData.profile)) ||
+    resolvedStudio ||
+    activeStudio ||
+    null;
+
+  const portfolioBackPath = currentStudioObj?.slug
+    ? `/estudios/${encodeURIComponent(currentStudioObj.slug)}`
+    : '/';
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -93,14 +205,25 @@ export default function QuoteRequest() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (relationError) return;
+
     setError(null);
     setFieldErrors({});
 
     const errors = {};
-    if (!formData.profile) errors.profile = 'Seleccioná el profesional o estudio destinatario.';
+    if (!formData.profile) errors.profile = 'Seleccioná el estudio destinatario.';
     if (!formData.name.trim()) errors.name = 'Ingresá tu nombre o empresa.';
     if (!formData.email.trim()) errors.email = 'El correo electrónico es obligatorio.';
     if (!formData.message.trim()) errors.message = 'Describí brevemente tu encargo o consulta.';
+
+    // Validar que el proyecto referenciado coincida con el estudio seleccionado
+    if (
+      referencedProject &&
+      formData.profile &&
+      Number(referencedProject.profile) !== Number(formData.profile)
+    ) {
+      errors.profile = `El proyecto "${referencedProject.title}" no pertenece al estudio seleccionado.`;
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -111,7 +234,9 @@ export default function QuoteRequest() {
     try {
       const compiledMessage = [
         `[Servicio requerido]: ${formData.serviceType}`,
-        referencedProject ? `[Proyecto de referencia]: ${referencedProject.title} (#${referencedProject.id})` : null,
+        referencedProject
+          ? `[Proyecto de referencia]: ${referencedProject.title} (#${referencedProject.id})`
+          : null,
         formData.scope ? `[Alcance / Plazos estimados]: ${formData.scope}` : null,
         `\n[Detalle del requerimiento]:\n${formData.message.trim()}`,
       ]
@@ -128,7 +253,7 @@ export default function QuoteRequest() {
       const res = await sendContact(payload);
       setSuccessData({
         ...res.data,
-        profileObj: profiles.find((p) => p.id === Number(formData.profile)),
+        profileObj: currentStudioObj,
       });
     } catch (err) {
       const data = err?.response?.data;
@@ -143,8 +268,8 @@ export default function QuoteRequest() {
       } else {
         setError(
           err?.response?.data?.detail ||
-          err?.message ||
-          'No se pudo enviar la solicitud. Por favor, intentá nuevamente.'
+            err?.message ||
+            'No se pudo enviar la solicitud. Por favor, intentá nuevamente.'
         );
       }
     } finally {
@@ -160,7 +285,39 @@ export default function QuoteRequest() {
     );
   }
 
-  // Pantalla de Confirmación de Solicitud (Checkout exitoso)
+  if (relationError) {
+    return (
+      <div className="container py-5 my-md-5" style={{ maxWidth: '640px' }}>
+        <div
+          className="p-4 p-md-5 text-center rounded-4"
+          style={{
+            background: '#fff',
+            border: '1px solid rgba(224, 49, 49, 0.25)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <span
+            className="badge rounded-pill mb-3 px-3 py-2 fw-bold text-uppercase"
+            style={{ background: '#ffe3e3', color: '#c92a2a', fontSize: '0.72rem', letterSpacing: '0.08em' }}
+          >
+            Parámetros Inconsistentes
+          </span>
+          <h1 className="h4 fw-bold mb-3" style={{ color: 'var(--color-ink)' }}>
+            No se puede iniciar la solicitud
+          </h1>
+          <p className="text-muted small mb-4" style={{ lineHeight: 1.6 }}>
+            {relationError}
+          </p>
+          <div className="d-flex justify-content-center gap-2 flex-wrap">
+            <Link to={portfolioBackPath} className="btn btn-dark rounded-pill px-4 fw-semibold">
+              Volver al portfolio
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (successData) {
     return (
       <div className="container py-5 my-md-5" style={{ maxWidth: '640px' }}>
@@ -193,7 +350,7 @@ export default function QuoteRequest() {
           </h2>
 
           <p className="text-muted small mb-4" style={{ lineHeight: 1.6 }}>
-            El equipo de <strong>{successData.profileObj?.name || 'Estudio Vértice'}</strong> ha recibido tu
+            El equipo de <strong>{successData.profileObj?.name || 'el estudio'}</strong> ha recibido tu
             requerimiento. Nos contactaremos a la brevedad al correo <strong>{formData.email}</strong>.
           </p>
 
@@ -204,9 +361,9 @@ export default function QuoteRequest() {
             <button
               type="button"
               className="btn btn-outline-dark rounded-pill px-4 fw-semibold"
-              onClick={() => navigate('/')}
+              onClick={() => navigate(portfolioBackPath)}
             >
-              Volver al inicio
+              Volver al estudio
             </button>
           </div>
         </div>
@@ -214,22 +371,24 @@ export default function QuoteRequest() {
     );
   }
 
+  const lockStudioSelect = Boolean(studioParam || projectId || !isAdmin || profiles.length <= 1);
+
   return (
     <div className="container py-5 my-md-4" style={{ maxWidth: '820px' }}>
       {/* Encabezado */}
       <div className="mb-4 pb-3 border-bottom">
         <Link
-          to="/"
+          to={portfolioBackPath}
           className="text-decoration-none small text-muted d-inline-flex align-items-center gap-1 mb-2"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />
           </svg>
-          Volver al portfolio
+          Volver al portfolio{currentStudioObj ? ` (${currentStudioObj.name})` : ''}
         </Link>
         <h1 className="h3 fw-bold mb-1" style={{ color: 'var(--color-ink)' }}>
-          Solicitud de Presupuesto y Contratación
+          Solicitud de Presupuesto{currentStudioObj ? ` — ${currentStudioObj.name}` : ''}
         </h1>
         <p className="text-muted small mb-0">
           Completá el siguiente formulario con las especificaciones de tu proyecto para recibir una cotización formal.
@@ -237,11 +396,15 @@ export default function QuoteRequest() {
       </div>
 
       {referencedProject && (
-        <div className="alert alert-secondary d-flex align-items-center gap-3 rounded-4 mb-4">
+        <div className="alert alert-secondary d-flex align-items-center justify-content-between gap-3 rounded-4 mb-4">
           <div className="small">
-            <span className="fw-bold d-block">Proyecto de referencia:</span>
-            <span>{referencedProject.title}</span> ({referencedProject.category})
+            <span className="fw-bold d-block">Proyecto de referencia seleccionado:</span>
+            <span>{referencedProject.title}</span>
+            {referencedProject.profile_name ? ` · ${referencedProject.profile_name}` : ''}
           </div>
+          <span className="badge bg-dark rounded-pill px-3 py-1">
+            #{referencedProject.id}
+          </span>
         </div>
       )}
 
@@ -263,7 +426,7 @@ export default function QuoteRequest() {
           <div className="row g-3 mb-3">
             <div className="col-12 col-md-6">
               <label htmlFor="profile" className="form-label small fw-semibold">
-                Destinatario / Estudio <span className="text-danger">*</span>
+                Estudio Destinatario <span className="text-danger">*</span>
               </label>
               <select
                 id="profile"
@@ -271,6 +434,7 @@ export default function QuoteRequest() {
                 className={`form-select rounded-pill ${fieldErrors.profile ? 'is-invalid' : ''}`}
                 value={formData.profile}
                 onChange={handleChange}
+                disabled={lockStudioSelect}
                 required
               >
                 {profiles.map((p) => (

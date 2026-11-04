@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getContacts, deleteContact } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -22,6 +22,11 @@ function formatDate(iso) {
 
 export default function InquiriesList() {
   const { user } = useAuth();
+  const outletContext = useOutletContext();
+  const studioContext = outletContext?.studioContext;
+  const activeProfile = studioContext?.profile || null;
+  const initializingStudio = Boolean(studioContext?.initializingStudio);
+
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,13 +38,31 @@ export default function InquiriesList() {
 
   const role = (user?.role || '').toLowerCase();
   const isAdminOrOwner = role === 'admin' || role === 'owner';
+  const isStaffMember = role === 'admin' || role === 'owner' || role === 'collaborator';
+
+  const activeProfileId = activeProfile?.id ?? null;
+  const newQuoteUrl = activeProfile?.slug
+    ? `/solicitud?studio=${encodeURIComponent(activeProfile.slug)}`
+    : '/solicitud';
+
+  // Limpiar inmediatamente y reiniciar carga al cambiar el estudio activo
+  const [prevProfileId, setPrevProfileId] = useState(activeProfileId);
+  if (prevProfileId !== activeProfileId) {
+    setPrevProfileId(activeProfileId);
+    setContacts([]);
+    setLoading(true);
+    setError(null);
+    setSelectedMessage(null);
+  }
 
   useEffect(() => {
+    if (initializingStudio) return;
     let cancelled = false;
 
     async function loadContacts() {
       try {
-        const res = await getContacts();
+        const params = activeProfileId ? { profile: activeProfileId } : undefined;
+        const res = await getContacts(params);
         if (cancelled) return;
         const data = Array.isArray(res.data) ? res.data : (res.data?.results ?? []);
         setContacts(data);
@@ -47,8 +70,8 @@ export default function InquiriesList() {
         if (!cancelled) {
           setError(
             err?.response?.data?.detail ||
-            err?.message ||
-            'No se pudo cargar el historial de solicitudes.'
+              err?.message ||
+              'No se pudo cargar el historial de solicitudes.'
           );
         }
       } finally {
@@ -63,7 +86,7 @@ export default function InquiriesList() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [initializingStudio, activeProfileId, reloadKey]);
 
   function handleRetry() {
     setLoading(true);
@@ -114,7 +137,7 @@ export default function InquiriesList() {
     );
   }, [contacts, searchQuery]);
 
-  if (loading) {
+  if (initializingStudio || loading) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5" style={{ minHeight: '60vh' }}>
         <LoadingSpinner />
@@ -131,21 +154,32 @@ export default function InquiriesList() {
             className="text-uppercase fw-bold text-muted small"
             style={{ letterSpacing: '0.12em' }}
           >
-            {isAdminOrOwner ? 'Panel de Consultas' : 'Mis Gestiones'}
+            {isStaffMember
+              ? `Panel de Consultas${activeProfile ? ` · ${activeProfile.name}` : ''}`
+              : 'Mis Gestiones'}
           </span>
           <h1 className="h3 fw-bold mb-1" style={{ color: 'var(--color-ink)' }}>
-            {isAdminOrOwner ? 'Bandeja de Solicitudes y Contacto' : 'Historial de Solicitudes'}
+            {isStaffMember
+              ? `Consultas y Solicitudes${activeProfile ? ` — ${activeProfile.name}` : ''}`
+              : 'Historial de Solicitudes'}
           </h1>
           <p className="text-muted small mb-0">
-            {isAdminOrOwner
-              ? 'Consultas y pedidos de presupuesto recibidos por el estudio.'
+            {isStaffMember
+              ? `Consultas y pedidos de presupuesto recibidos por ${activeProfile?.name || 'el estudio'}.`
               : 'Seguimiento de tus solicitudes de presupuesto y proyectos enviados.'}
           </p>
         </div>
-        <div className="d-flex gap-2">
-          <Link to="/solicitud" className="btn btn-dark btn-sm rounded-pill px-3 fw-semibold">
-            + Nueva Solicitud
-          </Link>
+        <div className="d-flex gap-2 flex-wrap">
+          {!isStaffMember && (
+            <Link to={newQuoteUrl} className="btn btn-dark btn-sm rounded-pill px-3 fw-semibold">
+              + Nueva Solicitud
+            </Link>
+          )}
+          {isStaffMember && (
+            <Link to="/admin" className="btn btn-dark btn-sm rounded-pill px-3 fw-semibold">
+              Panel de Administración
+            </Link>
+          )}
           <Link to="/perfil" className="btn btn-outline-dark btn-sm rounded-pill px-3">
             Mi Perfil
           </Link>
@@ -216,16 +250,18 @@ export default function InquiriesList() {
                 </svg>
               </div>
               <h2 className="h5 fw-bold mb-2" style={{ color: 'var(--color-ink)' }}>
-                No hay solicitudes registradas
+                No hay solicitudes registradas{activeProfile ? ` en ${activeProfile.name}` : ''}
               </h2>
               <p className="text-muted small mb-4" style={{ maxWidth: '420px', margin: '0 auto' }}>
-                {isAdminOrOwner
-                  ? 'Aún no se han recibido consultas a través del formulario de contacto.'
+                {isStaffMember
+                  ? `Aún no se han recibido consultas para ${activeProfile?.name || 'este estudio'}.`
                   : 'Aún no enviaste ninguna solicitud de presupuesto o proyecto. Podés iniciar una cuando quieras.'}
               </p>
-              <Link to="/solicitud" className="btn btn-dark rounded-pill px-4 fw-semibold">
-                Iniciar Solicitud de Presupuesto
-              </Link>
+              {!isStaffMember && (
+                <Link to={newQuoteUrl} className="btn btn-dark rounded-pill px-4 fw-semibold">
+                  Iniciar Solicitud de Presupuesto
+                </Link>
+              )}
             </div>
           ) : filtered.length === 0 ? (
             <div className="p-4 text-center text-muted">
@@ -240,7 +276,7 @@ export default function InquiriesList() {
                 <thead style={{ background: '#f8f9fa' }}>
                   <tr className="small text-uppercase text-muted" style={{ letterSpacing: '0.06em' }}>
                     <th scope="col" className="py-3 px-3">Fecha</th>
-                    <th scope="col" className="py-3 px-3">Destinatario</th>
+                    <th scope="col" className="py-3 px-3">Estudio</th>
                     <th scope="col" className="py-3 px-3">Remitente</th>
                     <th scope="col" className="py-3 px-3">Mensaje</th>
                     <th scope="col" className="py-3 px-3 text-center">Estado</th>
@@ -254,7 +290,7 @@ export default function InquiriesList() {
                         {formatDate(c.created_at)}
                       </td>
                       <td className="px-3 fw-semibold small text-nowrap">
-                        {c.profile_name || `Perfil #${c.profile}`}
+                        {c.profile_name || activeProfile?.name || `Perfil #${c.profile}`}
                       </td>
                       <td className="px-3">
                         <div className="fw-semibold small">{c.name}</div>
@@ -280,7 +316,7 @@ export default function InquiriesList() {
                             letterSpacing: '0.04em',
                           }}
                         >
-                          {isAdminOrOwner ? 'RECIBIDA' : 'ENVIADA'}
+                          {isStaffMember ? 'RECIBIDA' : 'ENVIADA'}
                         </span>
                       </td>
                       <td className="px-3 text-end text-nowrap">
@@ -352,7 +388,7 @@ export default function InquiriesList() {
                     <strong>Fecha:</strong> {formatDate(selectedMessage.created_at)}
                   </div>
                   <div>
-                    <strong>Destinatario:</strong> {selectedMessage.profile_name || `#${selectedMessage.profile}`}
+                    <strong>Estudio:</strong> {selectedMessage.profile_name || activeProfile?.name || `#${selectedMessage.profile}`}
                   </div>
                   <div>
                     <strong>Remitente:</strong> {selectedMessage.name} ({selectedMessage.email})

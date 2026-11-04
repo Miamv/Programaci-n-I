@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext, Link } from 'react-router-dom';
 import {
   getProject,
   createProject,
   updateProject,
   getProfiles,
+  getBrands,
   getMedia,
   createMedia,
   updateMedia,
   deleteMedia,
   resolveMediaUrl,
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { PLAN_KEYS, PLAN_LABELS, normalizePlanType } from '../config/plans';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -51,19 +53,28 @@ export default function ProjectForm() {
   const isEditing = Boolean(id);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const { user } = useAuth();
+  const outletContext = useOutletContext();
+  const activeStudio = outletContext?.studioContext?.profile || null;
+
+  const role = (user?.role || '').toLowerCase();
+  const isAdmin = role === 'admin';
+  const isAdminOrOwner = role === 'admin' || role === 'owner';
+  const isCollaborator = role === 'collaborator';
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: 'architecture',
-    profile: '',
+    profile: activeStudio?.id || '',
+    brand_ids: [],
   });
 
   const [profiles, setProfiles] = useState([]);
+  const [allBrands, setAllBrands] = useState([]);
   const [existingMedia, setExistingMedia] = useState([]);
   const [pendingMedia, setPendingMedia] = useState([]);
 
-  // Estado del selector para agregar un nuevo medio/plano
   const [draftMedia, setDraftMedia] = useState({
     file: null,
     previewUrl: null,
@@ -82,6 +93,12 @@ export default function ProjectForm() {
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  const [prevActiveStudioId, setPrevActiveStudioId] = useState(activeStudio?.id);
+  if (!isEditing && activeStudio?.id && prevActiveStudioId !== activeStudio.id) {
+    setPrevActiveStudioId(activeStudio.id);
+    setFormData((prev) => ({ ...prev, profile: activeStudio.id }));
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -89,8 +106,9 @@ export default function ProjectForm() {
       setLoading(true);
       setError(null);
       try {
-        const [profilesRes, projectRes] = await Promise.all([
-          getProfiles(),
+        const [profilesRes, brandsRes, projectRes] = await Promise.all([
+          getProfiles(!isAdmin ? { mine: 1 } : undefined),
+          getBrands(),
           isEditing ? getProject(id) : Promise.resolve(null),
         ]);
 
@@ -101,13 +119,22 @@ export default function ProjectForm() {
           : (profilesRes.data?.results ?? []);
         setProfiles(profilesData);
 
+        const brandsData = Array.isArray(brandsRes.data)
+          ? brandsRes.data
+          : (brandsRes.data?.results ?? []);
+        setAllBrands(brandsData);
+
         if (isEditing && projectRes) {
           const p = projectRes.data;
+          const currentBrandIds = Array.isArray(p.brands)
+            ? p.brands.map((b) => b.id)
+            : [];
           setFormData({
             title: p.title || '',
             description: p.description || '',
             category: p.category || 'architecture',
-            profile: p.profile || (profilesData[0]?.id ?? ''),
+            profile: p.profile || activeStudio?.id || (profilesData[0]?.id ?? ''),
+            brand_ids: currentBrandIds,
           });
 
           let mediaItems = Array.isArray(p.media) ? p.media : null;
@@ -124,18 +151,18 @@ export default function ProjectForm() {
           if (!cancelled) {
             setExistingMedia(mediaItems);
           }
-        } else if (profilesData.length > 0) {
+        } else if (activeStudio?.id || profilesData.length > 0) {
           setFormData((prev) => ({
             ...prev,
-            profile: prev.profile || profilesData[0].id,
+            profile: activeStudio?.id || prev.profile || profilesData[0]?.id || '',
           }));
         }
       } catch (err) {
         if (!cancelled) {
           setError(
             err?.response?.data?.detail ||
-            err?.message ||
-            'Error al cargar los datos del formulario.'
+              err?.message ||
+              'Error al cargar los datos del formulario.'
           );
         }
       } finally {
@@ -150,9 +177,8 @@ export default function ProjectForm() {
     return () => {
       cancelled = true;
     };
-  }, [id, isEditing]);
+  }, [id, isEditing, isAdmin, activeStudio?.id]);
 
-  // Limpieza de ObjectURLs al desmontar
   useEffect(() => {
     return () => {
       if (draftMedia.previewUrl) {
@@ -173,6 +199,16 @@ export default function ProjectForm() {
     }
   }
 
+  function handleToggleBrand(brandId) {
+    setFormData((prev) => {
+      const exists = prev.brand_ids.includes(brandId);
+      const next = exists
+        ? prev.brand_ids.filter((bId) => bId !== brandId)
+        : [...prev.brand_ids, brandId];
+      return { ...prev, brand_ids: next };
+    });
+  }
+
   function handleDraftFileChange(e) {
     const file = e.target.files?.[0] || null;
     if (draftMedia.previewUrl) {
@@ -190,8 +226,6 @@ export default function ProjectForm() {
     const { name, value } = e.target;
     setDraftMedia((prev) => {
       const next = { ...prev, [name]: value };
-      // Si se asigna un tipo de plano técnico y el tipo de medio era 'render',
-      // ajustarlo automáticamente a 'image' para coherencia semántica.
       if (name === 'plan_type' && value && prev.media_type === 'render') {
         next.media_type = 'image';
       }
@@ -334,6 +368,35 @@ export default function ProjectForm() {
     setFieldErrors({});
     setMediaFeedback(null);
 
+    const queue = [...pendingMedia];
+    if (draftMedia.file) {
+      queue.push({
+        file: draftMedia.file,
+        media_type: draftMedia.media_type || (draftMedia.plan_type ? 'image' : 'render'),
+        zone: draftMedia.zone || '',
+        plan_type: draftMedia.plan_type || '',
+      });
+    }
+
+    if (isCollaborator && isEditing) {
+      setSubmitting(true);
+      try {
+        if (queue.length > 0) {
+          await uploadMediaQueue(id, queue);
+        }
+        navigate('/admin');
+      } catch (err) {
+        setError(
+          err.response?.data?.detail ||
+            err.message ||
+            'No se pudieron subir los archivos multimedia.'
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const errors = {};
     if (!formData.title.trim()) errors.title = 'El título es obligatorio.';
     if (!formData.description.trim()) errors.description = 'La descripción es obligatoria.';
@@ -351,19 +414,8 @@ export default function ProjectForm() {
       description: formData.description.trim(),
       category: formData.category,
       profile: Number(formData.profile),
+      brand_ids: formData.brand_ids,
     };
-
-    // Si el usuario seleccionó un archivo en el input pero no pulsó "+ Agregar archivo",
-    // lo incluimos automáticamente en la cola de subida para no perderlo.
-    const queue = [...pendingMedia];
-    if (draftMedia.file) {
-      queue.push({
-        file: draftMedia.file,
-        media_type: draftMedia.media_type || (draftMedia.plan_type ? 'image' : 'render'),
-        zone: draftMedia.zone || '',
-        plan_type: draftMedia.plan_type || '',
-      });
-    }
 
     try {
       let savedProjectId = id;
@@ -391,8 +443,8 @@ export default function ProjectForm() {
       } else {
         setError(
           err.response?.data?.detail ||
-          err.message ||
-          'Ocurrió un error inesperado al guardar el proyecto.'
+            err.message ||
+            'Ocurrió un error inesperado al guardar el proyecto.'
         );
       }
     } finally {
@@ -408,6 +460,22 @@ export default function ProjectForm() {
     );
   }
 
+  if (isCollaborator && !isEditing) {
+    return (
+      <div className="container py-5 my-4 text-center">
+        <div className="mx-auto p-4 p-md-5 rounded-4 border bg-white" style={{ maxWidth: '560px' }}>
+          <h1 className="h5 fw-bold mb-2">Creación reservada a Propietarios y Administradores</h1>
+          <p className="text-muted small mb-4">
+            Con rol de Colaborador podés ingresar a editar proyectos existentes de tu estudio para subir renders y clasificar planos técnicos.
+          </p>
+          <Link to="/admin" className="btn btn-dark rounded-pill px-4">
+            Volver al Panel
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-4 py-md-5">
       <div className="mx-auto" style={{ maxWidth: '820px' }}>
@@ -415,7 +483,7 @@ export default function ProjectForm() {
           <ol className="breadcrumb small">
             <li className="breadcrumb-item">
               <Link to="/admin" className="text-decoration-none text-muted">
-                Administración
+                Administración {activeStudio ? `(${activeStudio.name})` : ''}
               </Link>
             </li>
             <li className="breadcrumb-item active" aria-current="page">
@@ -433,7 +501,9 @@ export default function ProjectForm() {
               {isEditing ? `Editar: ${formData.title || 'Proyecto'}` : 'Crear Nuevo Proyecto'}
             </h1>
             <p className="text-muted small mb-0">
-              Completá los datos del proyecto y adjuntá sus renders y planos técnicos (Planimetría, Planta, Cortes, Vistas, Detalle).
+              {isCollaborator
+                ? 'Gestioná los renders y planos técnicos (Planimetría, Planta, Cortes, Vistas, Detalle) de esta obra.'
+                : 'Completá los datos del proyecto y adjuntá sus renders y planos técnicos (Planimetría, Planta, Cortes, Vistas, Detalle).'}
             </p>
           </div>
 
@@ -456,7 +526,7 @@ export default function ProjectForm() {
                 value={formData.title}
                 onChange={handleChange}
                 placeholder="Ej. Casa Bosque, Módulo Chakal"
-                disabled={submitting}
+                disabled={submitting || isCollaborator}
                 required
               />
               {fieldErrors.title && (
@@ -477,7 +547,7 @@ export default function ProjectForm() {
                   className={`form-select rounded-3 ${fieldErrors.category ? 'is-invalid' : ''}`}
                   value={formData.category}
                   onChange={handleChange}
-                  disabled={submitting}
+                  disabled={submitting || isCollaborator}
                   required
                 >
                   {CATEGORIES.map((c) => (
@@ -497,7 +567,7 @@ export default function ProjectForm() {
 
               <div className="col-md-6">
                 <label htmlFor="profile" className="form-label small fw-semibold">
-                  Perfil del Estudio <span className="text-danger">*</span>
+                  Estudio Profesional <span className="text-danger">*</span>
                 </label>
                 <select
                   id="profile"
@@ -505,7 +575,7 @@ export default function ProjectForm() {
                   className={`form-select rounded-3 ${fieldErrors.profile ? 'is-invalid' : ''}`}
                   value={formData.profile}
                   onChange={handleChange}
-                  disabled={submitting}
+                  disabled={submitting || !isAdmin || profiles.length <= 1}
                   required
                 >
                   {profiles.length === 0 ? (
@@ -513,7 +583,7 @@ export default function ProjectForm() {
                   ) : (
                     profiles.map((pr) => (
                       <option key={pr.id} value={pr.id}>
-                        {pr.name} (ID #{pr.id})
+                        {pr.name}
                       </option>
                     ))
                   )}
@@ -528,7 +598,7 @@ export default function ProjectForm() {
               </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-3">
               <label htmlFor="description" className="form-label small fw-semibold">
                 Memoria Descriptiva / Descripción <span className="text-danger">*</span>
               </label>
@@ -540,7 +610,7 @@ export default function ProjectForm() {
                 value={formData.description}
                 onChange={handleChange}
                 placeholder="Explicá las características espaciales, materialidad y concepto arquitectónico..."
-                disabled={submitting}
+                disabled={submitting || isCollaborator}
                 required
               />
               {fieldErrors.description && (
@@ -552,9 +622,33 @@ export default function ProjectForm() {
               )}
             </div>
 
-            {/* ============================================================ */}
-            {/* SECCIÓN DE MEDIOS MULTIMEDIA Y PLANOS TÉCNICOS (plan_type) */}
-            {/* ============================================================ */}
+            {isAdminOrOwner && allBrands.length > 0 && (
+              <div className="mb-4">
+                <label className="form-label small fw-semibold d-block mb-2">
+                  Marcas y Proveedores Asociados (Opcional)
+                </label>
+                <div className="d-flex flex-wrap gap-2">
+                  {allBrands.map((brand) => {
+                    const selected = formData.brand_ids.includes(brand.id);
+                    return (
+                      <button
+                        key={brand.id}
+                        type="button"
+                        onClick={() => handleToggleBrand(brand.id)}
+                        disabled={submitting}
+                        className={`btn btn-sm rounded-pill px-3 ${
+                          selected ? 'btn-dark' : 'btn-outline-secondary'
+                        }`}
+                      >
+                        {selected ? '✓ ' : '+ '}
+                        {brand.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-4 pt-4 border-top">
               <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                 <div>
@@ -586,7 +680,6 @@ export default function ProjectForm() {
                 </div>
               )}
 
-              {/* Card para adjuntar nuevo archivo */}
               <div
                 className="p-3 rounded-3 mb-4 mt-3"
                 style={{ background: '#f8fafc', border: '1px dashed rgba(15,27,42,0.18)' }}
@@ -688,7 +781,6 @@ export default function ProjectForm() {
                 </div>
               </div>
 
-              {/* Lista de archivos pendientes de subir */}
               {pendingMedia.length > 0 && (
                 <div className="mb-4">
                   <h3 className="small fw-bold text-uppercase text-muted mb-2" style={{ fontSize: '0.72rem', letterSpacing: '0.06em' }}>
@@ -784,7 +876,6 @@ export default function ProjectForm() {
                 </div>
               )}
 
-              {/* Lista de medios ya guardados en el servidor */}
               {existingMedia.length > 0 ? (
                 <div className="mb-3">
                   <h3 className="small fw-bold text-uppercase text-muted mb-2" style={{ fontSize: '0.72rem', letterSpacing: '0.06em' }}>
@@ -924,14 +1015,17 @@ export default function ProjectForm() {
                     aria-hidden="true"
                   />
                 )}
-                {isEditing ? 'Actualizar Proyecto' : 'Guardar Proyecto'}
+                {isCollaborator
+                  ? 'Guardar Archivos Multimedia'
+                  : isEditing
+                  ? 'Actualizar Proyecto'
+                  : 'Guardar Proyecto'}
               </button>
             </div>
           </form>
         </div>
       </div>
 
-      {/* Modal ligero de previsualización de imagen / plano */}
       {previewModalUrl && (
         <div
           className="image-fullscreen-overlay"
