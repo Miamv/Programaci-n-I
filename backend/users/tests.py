@@ -602,4 +602,39 @@ class RolePermissionTestCase(APITestCase):
         )
         self.assertEqual([c['id'] for c in admin_contacts_two.data], [quote_two.data['id']])
 
+        # 5. VIEWER no puede listar ni leer consultas aunque su email coincida con el remitente
+        spoof_viewer = User.objects.create_user(
+            username='spoof_viewer',
+            email='cliente1@test.com',
+            password='securepass123',
+            role=User.RoleChoices.VIEWER,
+        )
+        viewer_list_contacts = self.client.get('/api/contacts/', **self._auth(spoof_viewer))
+        self.assertEqual(viewer_list_contacts.status_code, status.HTTP_403_FORBIDDEN)
+
+        viewer_detail_contact = self.client.get(
+            f'/api/contacts/{quote_one.data["id"]}/',
+            **self._auth(spoof_viewer),
+        )
+        self.assertEqual(viewer_detail_contact.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_numeric_slug_does_not_collide_with_another_profile_id(self):
+        numeric_slug = str(self.profile.id)
+        numeric_studio = ProfessionalProfile.objects.create(
+            name='Estudio Numérico',
+            slug=numeric_slug,
+        )
+
+        # Endpoint dedicado `/api/profiles/by-slug/<slug>/` resuelve inequívocamente por slug
+        res_by_slug = self.client.get(f'/api/profiles/by-slug/{numeric_slug}/')
+        self.assertEqual(res_by_slug.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_by_slug.data['id'], numeric_studio.id)
+        self.assertEqual(res_by_slug.data['slug'], numeric_slug)
+
+        # También `/api/profiles/<slug>/` prioriza coincidencia exacta por slug
+        res_direct = self.client.get(f'/api/profiles/{numeric_slug}/')
+        self.assertEqual(res_direct.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_direct.data['id'], numeric_studio.id)
+
+
 

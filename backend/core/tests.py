@@ -111,7 +111,7 @@ class MediaAndProjectSerializerTestCase(TestCase):
     def test_project_cover_image_is_none_without_media(self):
         serializer = ProjectSerializer(self.project)
         self.assertIsNone(serializer.data['cover_image'])
-        self.assertIsNone(serializer.data['coverImage'])
+        self.assertNotIn('coverImage', serializer.data)
         self.assertEqual(serializer.data['media'], [])
 
     def test_project_cover_image_excludes_plan_types_when_general_render_exists(self):
@@ -136,7 +136,7 @@ class MediaAndProjectSerializerTestCase(TestCase):
 
         self.assertIsNotNone(data['cover_image'])
         self.assertIn('render_principal.jpg', data['cover_image'])
-        self.assertEqual(data['cover_image'], data['coverImage'])
+        self.assertNotIn('coverImage', data)
 
     def test_project_cover_image_falls_back_to_plan_if_only_plans_exist(self):
         Media.objects.create(
@@ -305,6 +305,26 @@ class MediaAndProjectSerializerTestCase(TestCase):
 
         self.assertTrue(brand.logo.storage.exists(new_logo_path))
 
+        # 4. Verificar que si una transacción hace rollback, el archivo anterior NO se elimina
+        f_rollback = SimpleUploadedFile('rollback_logo.gif', VALID_GIF, content_type='image/gif')
+        try:
+            with transaction.atomic():
+                brand.logo = f_rollback
+                brand.save()
+                raise RuntimeError('Forzar rollback')
+        except RuntimeError:
+            pass
+        self.assertTrue(brand.logo.storage.exists(new_logo_path))
+
+    def test_media_empty_plan_type_normalized_to_none(self):
+        media_item = Media.objects.create(
+            project=self.project,
+            file=SimpleUploadedFile('render_norm.gif', VALID_GIF, content_type='image/gif'),
+            media_type='render',
+            plan_type='',
+        )
+        self.assertIsNone(media_item.plan_type)
+
     def test_project_admin_has_media_inline(self):
         site = AdminSite()
         project_admin = ProjectAdmin(Project, site)
@@ -316,12 +336,12 @@ class MediaAndProjectSerializerTestCase(TestCase):
         serializer_empty = ProfessionalProfileSerializer(self.profile, context={'request': request})
         self.assertIsNone(serializer_empty.data['avatar'])
 
-        self.profile.avatar = 'team/avatar.jpg'
+        self.profile.avatar = SimpleUploadedFile('avatar.gif', VALID_GIF, content_type='image/gif')
         self.profile.save()
 
         serializer_with_avatar = ProfessionalProfileSerializer(self.profile, context={'request': request})
         self.assertIsNotNone(serializer_with_avatar.data['avatar'])
-        self.assertIn('team/avatar.jpg', serializer_with_avatar.data['avatar'])
+        self.assertIn('http://testserver/media/profiles/', serializer_with_avatar.data['avatar'])
 
 
 class MultiStudioDomainAndAdminTestCase(TestCase):
