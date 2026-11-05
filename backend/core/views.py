@@ -1,6 +1,8 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from .models import Brand, ProfessionalProfile, Project, Media, Contact, StudioAbout, TeamMember
 from .serializers import (
     BrandSerializer,
@@ -107,12 +109,12 @@ class ProfessionalProfileViewSet(viewsets.ModelViewSet):
 
         # OWNER y COLLABORATOR solo pueden listar o ver los perfiles de estudio a los que están asociados
         if _is_studio_member_role(user):
-            if self.action in ['list', 'retrieve']:
+            if self.action in ['list', 'retrieve', 'by_slug']:
                 return qs.filter(users=user)
             return qs
 
         # VIEWER o visitante anónimo:
-        # En detalle (`retrieve` por /api/profiles/<slug>/) puede resolver el estudio del link recibido.
+        # En detalle (`retrieve` o `by_slug`) puede resolver el estudio del link recibido.
         # En listado (`list` sin slug explícito, ej. ruta raíz `/`), solo recibe el estudio principal (1 perfil)
         # para no exponer el catálogo completo de estudios creados en la plataforma.
         if self.action == 'list' and not slug_param:
@@ -123,18 +125,33 @@ class ProfessionalProfileViewSet(viewsets.ModelViewSet):
 
         return qs
 
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path=r'by-slug/(?P<slug>[^/]+)',
+        permission_classes=[AllowAny],
+    )
+    def by_slug(self, request, slug=None):
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = get_object_or_404(queryset, slug=slug)
+        self.check_object_permissions(request, obj)
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data)
+
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         lookup_value = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
-        if lookup_value is not None and str(lookup_value).isdigit():
-            obj = get_object_or_404(queryset, pk=int(lookup_value))
-        else:
-            obj = get_object_or_404(queryset, slug=lookup_value)
+        obj = queryset.filter(slug=str(lookup_value)).first() if lookup_value is not None else None
+        if obj is None:
+            if lookup_value is not None and str(lookup_value).isdigit():
+                obj = get_object_or_404(queryset, pk=int(lookup_value))
+            else:
+                obj = get_object_or_404(queryset, slug=lookup_value)
         self.check_object_permissions(self.request, obj)
         return obj
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'by_slug']:
             return [AllowAny()]
         return [CanManageProfile()]
 
@@ -240,7 +257,7 @@ class ContactViewSet(viewsets.ModelViewSet):
             qs = qs.filter(profile__users=user)
             return _filter_by_profile_params(qs, self.request, prefix='profile')
 
-        return qs.filter(email=user.email)
+        return Contact.objects.none()
 
     def get_permissions(self):
         return [CanManageContact()]

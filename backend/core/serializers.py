@@ -1,5 +1,4 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import models
 from rest_framework import serializers
 
 from .models import Brand, ProfessionalProfile, Project, Media, Contact, StudioAbout, TeamMember
@@ -34,7 +33,7 @@ class BrandSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Brand
-        fields = '__all__'
+        fields = ('id', 'name', 'logo')
 
 
 class ProfessionalProfileSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
@@ -71,12 +70,15 @@ class MediaSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Media
-        fields = '__all__'
+        fields = ('id', 'project', 'file', 'media_type', 'zone', 'plan_type')
 
     def validate(self, attrs):
         instance = self.instance
         media_type = attrs.get('media_type', getattr(instance, 'media_type', None))
         plan_type = attrs.get('plan_type', getattr(instance, 'plan_type', None))
+        if plan_type == '':
+            plan_type = None
+            attrs['plan_type'] = None
         file_obj = attrs.get('file', getattr(instance, 'file', None))
 
         try:
@@ -100,34 +102,40 @@ class ProjectSerializer(serializers.ModelSerializer):
     )
     media = MediaSerializer(many=True, read_only=True)
     cover_image = serializers.SerializerMethodField()
-    coverImage = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
-        fields = '__all__'
+        fields = (
+            'id',
+            'profile',
+            'profile_slug',
+            'profile_name',
+            'title',
+            'description',
+            'category',
+            'brands',
+            'brand_ids',
+            'media',
+            'cover_image',
+            'created_at',
+            'updated_at',
+        )
 
     def _get_cover_url(self, obj):
-        media_cache = getattr(obj, '_prefetched_objects_cache', {}).get('media')
-        if media_cache is not None:
-            # 1° prioridad: imagen o render general (sin plan_type)
+        # Iterar sobre `obj.media.all()` reutiliza automáticamente la caché de
+        # `prefetch_related('media')` de Django sin acoplarse a `_prefetched_objects_cache`.
+        media_items = list(obj.media.all())
+        first_media = next(
+            (
+                m for m in media_items
+                if m.media_type in ('image', 'render') and not m.plan_type
+            ),
+            None,
+        )
+        if first_media is None:
             first_media = next(
-                (
-                    m for m in media_cache
-                    if m.media_type in ('image', 'render') and not m.plan_type
-                ),
+                (m for m in media_items if m.media_type in ('image', 'render')),
                 None,
-            )
-            # 2° prioridad (fallback): cualquier imagen o render si solo tiene planos
-            if first_media is None:
-                first_media = next(
-                    (m for m in media_cache if m.media_type in ('image', 'render')),
-                    None,
-                )
-        else:
-            qs = obj.media.filter(media_type__in=['image', 'render'])
-            first_media = (
-                qs.filter(models.Q(plan_type__isnull=True) | models.Q(plan_type='')).first()
-                or qs.first()
             )
 
         if not first_media or not first_media.file:
@@ -140,9 +148,6 @@ class ProjectSerializer(serializers.ModelSerializer):
     def get_cover_image(self, obj):
         return self._get_cover_url(obj)
 
-    def get_coverImage(self, obj):
-        return self._get_cover_url(obj)
-
 
 class ContactSerializer(serializers.ModelSerializer):
     profile_name = serializers.ReadOnlyField(source='profile.name')
@@ -150,7 +155,17 @@ class ContactSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Contact
-        fields = '__all__'
+        fields = (
+            'id',
+            'profile',
+            'profile_name',
+            'profile_slug',
+            'name',
+            'email',
+            'message',
+            'created_at',
+            'updated_at',
+        )
 
     def validate_profile(self, value):
         if value and not value.is_active:
@@ -164,7 +179,15 @@ class StudioAboutSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = StudioAbout
-        fields = '__all__'
+        fields = (
+            'id',
+            'profile',
+            'profile_slug',
+            'title',
+            'description',
+            'image',
+            'updated_at',
+        )
 
 
 class TeamMemberSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
@@ -173,4 +196,13 @@ class TeamMemberSerializer(AbsoluteMediaUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = TeamMember
-        fields = '__all__'
+        fields = (
+            'id',
+            'profile',
+            'profile_slug',
+            'full_name',
+            'role',
+            'avatar',
+            'order',
+            'created_at',
+        )

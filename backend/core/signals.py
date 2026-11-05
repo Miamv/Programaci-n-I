@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models.signals import post_delete, pre_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from .models import Brand, Media, ProfessionalProfile, StudioAbout, TeamMember
@@ -50,7 +50,7 @@ def delete_file_if_unreferenced(storage, file_name):
 @receiver(pre_save, sender=Media)
 @receiver(pre_save, sender=StudioAbout)
 @receiver(pre_save, sender=TeamMember)
-def cleanup_replaced_files_on_save(sender, instance, **kwargs):
+def track_replaced_files_before_save(sender, instance, **kwargs):
     if kwargs.get('raw') or not instance.pk:
         return
 
@@ -62,6 +62,10 @@ def cleanup_replaced_files_on_save(sender, instance, **kwargs):
     if not old_values:
         return
 
+    replaced = getattr(instance, '_replaced_files', None)
+    if replaced is None:
+        replaced = []
+
     for field_name in field_names:
         old_name = old_values.get(field_name)
         if not old_name:
@@ -72,9 +76,29 @@ def cleanup_replaced_files_on_save(sender, instance, **kwargs):
 
         if old_name != new_name:
             storage = instance._meta.get_field(field_name).storage
-            transaction.on_commit(
-                lambda s=storage, name=old_name: delete_file_if_unreferenced(s, name)
-            )
+            replaced.append((storage, old_name))
+
+    instance._replaced_files = replaced
+
+
+@receiver(post_save, sender=Brand)
+@receiver(post_save, sender=ProfessionalProfile)
+@receiver(post_save, sender=Media)
+@receiver(post_save, sender=StudioAbout)
+@receiver(post_save, sender=TeamMember)
+def cleanup_replaced_files_after_save(sender, instance, **kwargs):
+    if kwargs.get('raw'):
+        return
+
+    replaced = getattr(instance, '_replaced_files', None)
+    if not replaced:
+        return
+
+    instance._replaced_files = []
+    for storage, old_name in replaced:
+        transaction.on_commit(
+            lambda s=storage, name=old_name: delete_file_if_unreferenced(s, name)
+        )
 
 
 @receiver(post_delete, sender=Brand)

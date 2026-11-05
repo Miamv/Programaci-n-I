@@ -153,8 +153,10 @@ class CanManageProfile(permissions.BasePermission):
 class CanManageContact(permissions.BasePermission):
     """
     ADMIN puede gestionar cualquier contacto.
-    OWNER puede gestionar los contactos de sus propios perfiles.
-    Cualquier usuario puede crear un contacto.
+    OWNER puede consultar y eliminar los contactos de sus propios perfiles.
+    COLLABORATOR puede consultar (list/retrieve) los contactos de sus perfiles asignados.
+    Cualquier usuario (incluso anónimo o VIEWER) puede crear un contacto, pero
+    no leer consultas por coincidencia de email no verificado.
     """
     def has_permission(self, request, view):
         if view.action == 'create':
@@ -163,19 +165,28 @@ class CanManageContact(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        if view.action in ['list', 'retrieve']:
+        if _is_platform_admin(request.user):
             return True
 
-        return _is_platform_admin(request.user) or request.user.role == User.RoleChoices.OWNER
+        if view.action in ['list', 'retrieve']:
+            return request.user.role in (User.RoleChoices.OWNER, User.RoleChoices.COLLABORATOR)
+
+        return request.user.role == User.RoleChoices.OWNER
 
     def has_object_permission(self, request, view, obj):
         if _is_platform_admin(request.user):
             return True
 
+        if view.action in ['list', 'retrieve'] and request.user.role in (
+            User.RoleChoices.OWNER,
+            User.RoleChoices.COLLABORATOR,
+        ):
+            return obj.profile.users.filter(id=request.user.id).exists()
+
         if request.user.role == User.RoleChoices.OWNER:
             return obj.profile.users.filter(id=request.user.id).exists()
 
-        return bool(request.user.email and obj.email.lower() == request.user.email.lower())
+        return False
 
 
 class CanManageBrand(permissions.BasePermission):

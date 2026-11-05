@@ -177,7 +177,14 @@ class Media(models.Model):
 
     def clean(self):
         super().clean()
+        if self.plan_type == '':
+            self.plan_type = None
         self.validate_media_coherence(self.media_type, self.plan_type, self.file)
+
+    def save(self, *args, **kwargs):
+        if self.plan_type == '':
+            self.plan_type = None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.media_type} - {self.project.title}'
