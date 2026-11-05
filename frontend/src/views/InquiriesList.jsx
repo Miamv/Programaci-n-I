@@ -27,18 +27,18 @@ export default function InquiriesList() {
   const activeProfile = studioContext?.profile || null;
   const initializingStudio = Boolean(studioContext?.initializingStudio);
 
+  const role = (user?.role || '').toLowerCase();
+  const isAdminOrOwner = role === 'admin' || role === 'owner';
+  const isStaffMember = role === 'admin' || role === 'owner' || role === 'collaborator';
+
   const [contacts, setContacts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isStaffMember);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
-
-  const role = (user?.role || '').toLowerCase();
-  const isAdminOrOwner = role === 'admin' || role === 'owner';
-  const isStaffMember = role === 'admin' || role === 'owner' || role === 'collaborator';
 
   const activeProfileId = activeProfile?.id ?? null;
   const newQuoteUrl = activeProfile?.slug
@@ -50,13 +50,13 @@ export default function InquiriesList() {
   if (prevProfileId !== activeProfileId) {
     setPrevProfileId(activeProfileId);
     setContacts([]);
-    setLoading(true);
+    setLoading(isStaffMember);
     setError(null);
     setSelectedMessage(null);
   }
 
   useEffect(() => {
-    if (initializingStudio) return;
+    if (initializingStudio || !isStaffMember) return;
     let cancelled = false;
 
     async function loadContacts() {
@@ -86,7 +86,7 @@ export default function InquiriesList() {
     return () => {
       cancelled = true;
     };
-  }, [initializingStudio, activeProfileId, reloadKey]);
+  }, [initializingStudio, isStaffMember, activeProfileId, reloadKey]);
 
   function handleRetry() {
     setLoading(true);

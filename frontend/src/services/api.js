@@ -164,7 +164,7 @@ export function getProfiles(params) {
 }
 
 export function getProfileBySlug(slug) {
-  return api.get(`/profiles/${encodeURIComponent(slug)}/`);
+  return api.get(`/profiles/by-slug/${encodeURIComponent(slug)}/`);
 }
 
 export function getBrands(params) {

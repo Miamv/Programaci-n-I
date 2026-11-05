@@ -14,7 +14,7 @@ const RESET_DELAY = 420;
 
 function ProjectCarouselStage({ projects, covers, studioSlug }) {
   const viewportRef = useRef(null);
-  const trackRef = useRef(null);
+  const slideRefs = useRef([]);
   const instantRef = useRef(false);
   const resetTimer = useRef(null);
 
@@ -31,18 +31,29 @@ function ProjectCarouselStage({ projects, covers, studioSlug }) {
   }, [projects]);
 
   const [activeIndex, setActiveIndex] = useState(n);
+  const [prevProjects, setPrevProjects] = useState(projects);
+  if (prevProjects !== projects) {
+    setPrevProjects(projects);
+    setActiveIndex(projects.length);
+  }
+
   const total = slides.length;
   const safeIndex = total > 0 ? Math.min(Math.max(activeIndex, 0), total - 1) : 0;
+  const prevTotalRef = useRef(total);
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    const track = trackRef.current;
-    if (!viewport || !track || total === 0) return;
-    const active = track.children[safeIndex];
+    if (!viewport || total === 0) return;
+    const active = slideRefs.current[safeIndex];
     if (!active) return;
+    const totalChanged = prevTotalRef.current !== total;
+    prevTotalRef.current = total;
     const left = active.offsetLeft - viewport.clientWidth / 2 + active.clientWidth / 2;
     const farJump = Math.abs(viewport.scrollLeft - left) > viewport.clientWidth;
-    viewport.scrollTo({ left, behavior: instantRef.current || farJump ? 'auto' : 'smooth' });
+    viewport.scrollTo({
+      left,
+      behavior: instantRef.current || totalChanged || farJump ? 'auto' : 'smooth',
+    });
     instantRef.current = false;
 
     if (safeIndex < n || safeIndex >= 2 * n) {
@@ -57,13 +68,21 @@ function ProjectCarouselStage({ projects, covers, studioSlug }) {
 
   function step(delta) {
     clearTimeout(resetTimer.current);
-    const next = safeIndex + delta;
-    if (next < 0 || next >= total) {
+    const nextIdx = safeIndex + delta;
+    if (nextIdx < 0 || nextIdx >= total) {
       instantRef.current = true;
-      setActiveIndex((((next % n) + n) % n) + n);
+      setActiveIndex((((nextIdx % n) + n) % n) + n);
     } else {
-      setActiveIndex(next);
+      setActiveIndex(nextIdx);
     }
+  }
+
+  function prev() {
+    step(-1);
+  }
+
+  function next() {
+    step(1);
   }
 
   function select(index) {
@@ -77,17 +96,20 @@ function ProjectCarouselStage({ projects, covers, studioSlug }) {
       <button
         type="button"
         className="vertice-projects__arrow vertice-projects__arrow--prev"
-        onClick={() => step(-1)}
+        onClick={prev}
         aria-label="Proyecto anterior"
       >
         <Chevron dir="left" />
       </button>
 
       <div className="vertice-projects__viewport" ref={viewportRef}>
-        <div className="vertice-projects__track" ref={trackRef}>
+        <div className="vertice-projects__track">
           {slides.map(({ project, key }, index) => (
             <div
               key={key}
+              ref={(el) => {
+                slideRefs.current[index] = el;
+              }}
               className={`vertice-projects__item ${index === safeIndex ? 'is-active' : 'is-idle'}`}
               onClick={() => select(index)}
               role="button"
@@ -110,7 +132,7 @@ function ProjectCarouselStage({ projects, covers, studioSlug }) {
       <button
         type="button"
         className="vertice-projects__arrow vertice-projects__arrow--next"
-        onClick={() => step(1)}
+        onClick={next}
         aria-label="Proyecto siguiente"
       >
         <Chevron dir="right" />
@@ -129,11 +151,19 @@ export default function ProjectCards({
 }) {
   const safeProjects = useMemo(() => (Array.isArray(projects) ? projects : []), [projects]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const hasProjects = safeProjects.length > 0;
 
   const filteredProjects = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
+    const query = debouncedSearch.trim().toLowerCase();
     if (!query) return safeProjects;
 
     return safeProjects.filter((project) => {
@@ -143,7 +173,7 @@ export default function ProjectCards({
         (project.category && project.category.toLowerCase().includes(query))
       );
     });
-  }, [safeProjects, searchTerm]);
+  }, [safeProjects, debouncedSearch]);
 
   return (
     <section id="proyectos" className="vertice-projects">
@@ -228,7 +258,7 @@ export default function ProjectCards({
         </div>
       ) : (
         <ProjectCarouselStage
-          key={`${studioSlug || 'default'}:${searchTerm}:${filteredProjects.length}`}
+          key={studioSlug || 'default'}
           projects={filteredProjects}
           covers={covers}
           studioSlug={studioSlug}
