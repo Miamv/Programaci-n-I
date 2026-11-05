@@ -589,43 +589,6 @@ a {
   color: var(--color-ink);
 }
 
-.vertice-projects__filters {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.45rem;
-}
-
-.vertice-projects__filter-btn {
-  font-family: var(--font-body);
-  font-size: 0.76rem;
-  font-weight: 500;
-  padding: 0.32rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 27, 42, 0.12);
-  background: #fff;
-  color: rgba(15, 27, 42, 0.75);
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.vertice-projects__filter-btn:hover {
-  border-color: rgba(15, 27, 42, 0.25);
-  color: var(--color-ink);
-}
-
-.vertice-projects__filter-btn.is-active {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: #fff;
-  font-weight: 600;
-}
-
-.vertice-projects__meta {
-  font-size: 0.76rem;
-  color: rgba(15, 27, 42, 0.55);
-}
-
 .vertice-projects__action-btn {
   margin-top: 0.85rem;
   display: inline-flex;

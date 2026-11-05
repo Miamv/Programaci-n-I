@@ -9,6 +9,7 @@ import ProjectLocation from '../components/ProjectLocation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getProject, getMedia, resolveMediaUrl } from '../services/api';
 import { PLAN_KEYS, generatePlanoPlaceholder, normalizePlanType } from '../config/plans';
+import studio from '../config/studio';
 
 export default function ProjectDetail() {
   const { slug, id } = useParams();
@@ -50,7 +51,8 @@ export default function ProjectDetail() {
           try {
             const mRes = await getMedia(id, queryParams);
             list = Array.isArray(mRes.data) ? mRes.data : (mRes.data?.results ?? []);
-          } catch {
+          } catch (mediaErr) {
+            console.warn('No se pudo cargar multimedia adicional para el proyecto:', mediaErr);
             list = [];
           }
         }
@@ -160,7 +162,8 @@ export default function ProjectDetail() {
 
   const normalizedProject = useMemo(() => {
     if (!project) return null;
-    const defaultLocation = project.ubicacionTexto || project.profile_name || 'Argentina';
+    const defaultLocation =
+      project.ubicacionTexto || project.profile_name || studio.defaultLocation;
     return {
       ...project,
       titulo: projectTitle,
@@ -170,7 +173,7 @@ export default function ProjectDetail() {
       ubicacionTexto: defaultLocation,
       googleEarthUrl:
         project.googleEarthUrl ||
-        `https://earth.google.com/web/search/${encodeURIComponent(`${projectTitle} ${defaultLocation}`)}`,
+        studio.buildGoogleEarthSearchUrl(`${projectTitle} ${defaultLocation}`),
       specs: project.specs || null,
     };
   }, [project, projectTitle, projectCategory, projectSubtitle, projectDescription]);

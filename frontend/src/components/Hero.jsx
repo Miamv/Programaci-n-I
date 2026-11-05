@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import studio from '../config/studio';
 import { resolveMediaUrl } from '../services/api';
 
@@ -14,7 +14,7 @@ function VerticeMark() {
 
 export default function Hero({ profile }) {
   const [failedUrl, setFailedUrl] = useState(null);
-  const avatarUrl = resolveMediaUrl(profile?.avatar);
+  const avatarUrl = useMemo(() => resolveMediaUrl(profile?.avatar), [profile?.avatar]);
   const heroImage = avatarUrl && failedUrl !== avatarUrl ? avatarUrl : studio.heroImage;
   const studioTitle = profile?.name || studio.platformName || 'VÉRTICE';
   const specialty = profile?.specialty?.trim() || '';
@@ -25,6 +25,7 @@ export default function Hero({ profile }) {
         <img
           src={heroImage}
           alt=""
+          onLoad={() => setFailedUrl(null)}
           onError={() => {
             if (avatarUrl) setFailedUrl(avatarUrl);
           }}

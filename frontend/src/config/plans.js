@@ -10,7 +10,6 @@ export const PLAN_LABELS = {
   vistas: 'Vistas',
   detalle: 'Detalle',
   detalle_constructivo: 'Detalle',
-  detalleConstructivo: 'Detalle',
 };
 
 export function normalizePlanType(type) {
@@ -24,7 +23,13 @@ export function normalizePlanType(type) {
   return t;
 }
 
+const placeholderCache = new Map();
+
 export function generatePlanoPlaceholder(label, sub = 'Esc 1:50') {
+  const cacheKey = `${label}::${sub}`;
+  if (placeholderCache.has(cacheKey)) {
+    return placeholderCache.get(cacheKey);
+  }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">`
     + `<rect width="1200" height="800" fill="#EDEAE2"/>`
     + `<rect x="40" y="40" width="1120" height="720" fill="none" stroke="#0F1B2A" stroke-width="2" opacity="0.85"/>`
@@ -36,5 +41,7 @@ export function generatePlanoPlaceholder(label, sub = 'Esc 1:50') {
     + `<g font-family="monospace" fill="#0F1B2A"><text x="80" y="110" font-size="34" letter-spacing="6">${label}</text>`
     + `<text x="80" y="145" font-size="18" opacity="0.6">${sub}</text></g>`
     + `</svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const dataUri = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  placeholderCache.set(cacheKey, dataUri);
+  return dataUri;
 }

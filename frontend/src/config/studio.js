@@ -15,6 +15,10 @@ const studio = {
   tagline: 'Plataforma de Portfolios de Arquitectura y Diseño',
   logo: '/favicon.svg',
   heroImage: heroBundled,
+  defaultLocation: import.meta.env.VITE_STUDIO_DEFAULT_LOCATION ?? 'Argentina',
+  buildGoogleEarthSearchUrl(query) {
+    return `https://earth.google.com/web/search/${encodeURIComponent(query)}`;
+  },
   contact: {
     phone: '',
     email: '',
