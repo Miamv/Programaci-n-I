@@ -141,12 +141,10 @@ class ProfessionalProfileViewSet(viewsets.ModelViewSet):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         lookup_value = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
-        obj = queryset.filter(slug=str(lookup_value)).first() if lookup_value is not None else None
-        if obj is None:
-            if lookup_value is not None and str(lookup_value).isdigit():
-                obj = get_object_or_404(queryset, pk=int(lookup_value))
-            else:
-                obj = get_object_or_404(queryset, slug=lookup_value)
+        if lookup_value is not None and str(lookup_value).isdigit():
+            obj = get_object_or_404(queryset, pk=int(lookup_value))
+        else:
+            obj = get_object_or_404(queryset, slug=lookup_value)
         self.check_object_permissions(self.request, obj)
         return obj
 

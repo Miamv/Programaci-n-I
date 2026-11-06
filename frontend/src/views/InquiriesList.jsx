@@ -232,7 +232,34 @@ export default function InquiriesList() {
             </div>
           )}
 
-          {contacts.length === 0 ? (
+          {!isStaffMember ? (
+            <div
+              className="p-5 text-center rounded-4"
+              style={{
+                background: '#fff',
+                border: '1px dashed rgba(15, 27, 42, 0.2)',
+              }}
+            >
+              <div
+                className="d-inline-flex justify-content-center align-items-center rounded-circle mb-3"
+                style={{ width: '56px', height: '56px', background: '#f1f3f5', color: '#495057' }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </div>
+              <h2 className="h5 fw-bold mb-2" style={{ color: 'var(--color-ink)' }}>
+                El historial de solicitudes no está disponible por el momento
+              </h2>
+              <p className="text-muted small mb-4" style={{ maxWidth: '460px', margin: '0 auto' }}>
+                Por razones de privacidad, las consultas enviadas son recibidas y gestionadas directamente por el estudio destinatario. Podés enviar una nueva solicitud de presupuesto cuando lo desees.
+              </p>
+              <Link to={newQuoteUrl} className="btn btn-dark rounded-pill px-4 fw-semibold">
+                Iniciar Solicitud de Presupuesto
+              </Link>
+            </div>
+          ) : contacts.length === 0 ? (
             <div
               className="p-5 text-center rounded-4"
               style={{
@@ -252,16 +279,9 @@ export default function InquiriesList() {
               <h2 className="h5 fw-bold mb-2" style={{ color: 'var(--color-ink)' }}>
                 No hay solicitudes registradas{activeProfile ? ` en ${activeProfile.name}` : ''}
               </h2>
-              <p className="text-muted small mb-4" style={{ maxWidth: '420px', margin: '0 auto' }}>
-                {isStaffMember
-                  ? `Aún no se han recibido consultas para ${activeProfile?.name || 'este estudio'}.`
-                  : 'Aún no enviaste ninguna solicitud de presupuesto o proyecto. Podés iniciar una cuando quieras.'}
+              <p className="text-muted small mb-0" style={{ maxWidth: '420px', margin: '0 auto' }}>
+                Aún no se han recibido consultas para {activeProfile?.name || 'este estudio'}.
               </p>
-              {!isStaffMember && (
-                <Link to={newQuoteUrl} className="btn btn-dark rounded-pill px-4 fw-semibold">
-                  Iniciar Solicitud de Presupuesto
-                </Link>
-              )}
             </div>
           ) : filtered.length === 0 ? (
             <div className="p-4 text-center text-muted">

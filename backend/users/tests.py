@@ -625,16 +625,26 @@ class RolePermissionTestCase(APITestCase):
             slug=numeric_slug,
         )
 
-        # Endpoint dedicado `/api/profiles/by-slug/<slug>/` resuelve inequívocamente por slug
+        # 1. Endpoint dedicado `/api/profiles/by-slug/<slug>/` resuelve inequívocamente por slug
         res_by_slug = self.client.get(f'/api/profiles/by-slug/{numeric_slug}/')
         self.assertEqual(res_by_slug.status_code, status.HTTP_200_OK)
         self.assertEqual(res_by_slug.data['id'], numeric_studio.id)
         self.assertEqual(res_by_slug.data['slug'], numeric_slug)
 
-        # También `/api/profiles/<slug>/` prioriza coincidencia exacta por slug
-        res_direct = self.client.get(f'/api/profiles/{numeric_slug}/')
-        self.assertEqual(res_direct.status_code, status.HTTP_200_OK)
-        self.assertEqual(res_direct.data['id'], numeric_studio.id)
+        # 2. La ruta de detalle numérica `/api/profiles/<id>/` opera por ID (GET/PATCH/DELETE)
+        # sobre `self.profile` sin colisionar con `numeric_studio`
+        res_patch_by_id = self.client.patch(
+            f'/api/profiles/{self.profile.id}/',
+            {'specialty': 'Actualizado por ID sin colisión'},
+            format='json',
+            **self._auth(self.admin),
+        )
+        self.assertEqual(res_patch_by_id.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_patch_by_id.data['id'], self.profile.id)
+        self.profile.refresh_from_db()
+        numeric_studio.refresh_from_db()
+        self.assertEqual(self.profile.specialty, 'Actualizado por ID sin colisión')
+        self.assertEqual(numeric_studio.specialty, '')
 
 
 

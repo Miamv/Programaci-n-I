@@ -25,9 +25,8 @@ export default function Hero({ profile }) {
         <img
           src={heroImage}
           alt=""
-          onLoad={() => setFailedUrl(null)}
           onError={() => {
-            if (avatarUrl) setFailedUrl(avatarUrl);
+            if (heroImage === avatarUrl) setFailedUrl(avatarUrl);
           }}
         />
         <span className="vertice-hero__wash" />
