@@ -4,7 +4,7 @@ import useScrollTo from '../hooks/useScrollTo';
 import studio from '../config/studio';
 import { useAuth } from '../context/AuthContext';
 
-export default function Navbar() {
+export default function Navbar({ studioContext }) {
   const scrollTo = useScrollTo();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -12,6 +12,47 @@ export default function Navbar() {
   const location = useLocation();
 
   const roleLabel = user?.role ?? '';
+  const canAccessPanel =
+    user?.role === 'admin' || user?.role === 'owner' || user?.role === 'collaborator';
+
+  const slugMatch = location.pathname.match(/^\/estudios\/([^/]+)/);
+  const urlSlug = slugMatch ? decodeURIComponent(slugMatch[1]) : null;
+
+  const contextProfile = studioContext?.profile || null;
+  const activeProfile =
+    !urlSlug || contextProfile?.slug === urlSlug ? contextProfile : null;
+
+  const brandName = activeProfile?.name || studio.platformName || 'Vértice';
+  const resolvedSlug = urlSlug || activeProfile?.slug || null;
+  const basePath = resolvedSlug ? `/estudios/${resolvedSlug}` : '/';
+
+  const navLinks = [
+    { label: 'Home', sectionId: null, href: basePath, show: true },
+    {
+      label: 'Nosotros',
+      sectionId: 'nosotros',
+      href: `${basePath}#nosotros`,
+      show: !activeProfile || Boolean(studioContext?.hasAbout),
+    },
+    {
+      label: 'Equipo',
+      sectionId: 'equipo',
+      href: `${basePath}#equipo`,
+      show: Boolean(activeProfile && studioContext?.hasTeam),
+    },
+    {
+      label: 'Proyectos',
+      sectionId: 'proyectos',
+      href: `${basePath}#proyectos`,
+      show: true,
+    },
+    {
+      label: 'Contacto',
+      sectionId: 'contacto',
+      href: `${basePath}#contacto`,
+      show: true,
+    },
+  ].filter((item) => item.show);
 
   // Cierra el menú al cambiar de usuario o de ruta (actualización en fase de
   // render, sin efectos en cascada).
@@ -45,10 +86,10 @@ export default function Navbar() {
     };
   }, [menuOpen]);
 
-  function handleAnchorClick(e, href) {
-    if (href.startsWith('/#')) {
+  function handleAnchorClick(e, sectionId) {
+    if (sectionId) {
       e.preventDefault();
-      scrollTo(href.slice(2));
+      scrollTo(sectionId, basePath);
     }
   }
 
@@ -61,7 +102,11 @@ export default function Navbar() {
     <header className="vertice-navbar">
       <nav className="navbar navbar-expand-lg vertice-navbar__nav">
         <div className="container vertice-navbar__container">
-          <Link className="vertice-navbar__brand" to="/" aria-label={`${studio.name} — inicio`}>
+          <Link
+            className="vertice-navbar__brand"
+            to={basePath}
+            aria-label={`${brandName} — inicio`}
+          >
             <span className="vertice-navbar__brand-mark" aria-hidden="true">
               <svg width="34" height="26" viewBox="0 0 98 72" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 68 V18 L28 8 L28 68" stroke="currentColor" strokeWidth="2.8" fill="none" />
@@ -69,7 +114,7 @@ export default function Navbar() {
                 <path d="M42 68 V38 L60 26 L60 68" stroke="currentColor" strokeWidth="2.8" fill="none" />
               </svg>
             </span>
-            <span className="vertice-navbar__brand-name">{studio.name}</span>
+            <span className="vertice-navbar__brand-name">{brandName}</span>
           </Link>
 
           <button
@@ -86,10 +131,14 @@ export default function Navbar() {
 
           <div className="collapse navbar-collapse" id="navbarContent">
             <ul className="navbar-nav ms-auto align-items-lg-center vertice-navbar__links">
-              {studio.navLinks.map((link) => (
-                <li className="nav-item" key={link.href}>
-                  {link.href.startsWith('/#') ? (
-                    <a className="nav-link" href={link.href} onClick={(e) => handleAnchorClick(e, link.href)}>
+              {navLinks.map((link) => (
+                <li className="nav-item" key={link.label}>
+                  {link.sectionId ? (
+                    <a
+                      className="nav-link"
+                      href={link.href}
+                      onClick={(e) => handleAnchorClick(e, link.sectionId)}
+                    >
                       {link.label}
                     </a>
                   ) : (
@@ -100,50 +149,92 @@ export default function Navbar() {
                 </li>
               ))}
 
+              {canAccessPanel && (
+                <li className="nav-item ms-lg-2">
+                  <Link to="/admin" className="nav-link fw-semibold" style={{ color: 'var(--color-ink)' }}>
+                    Admin
+                  </Link>
+                </li>
+              )}
+
               {user ? (
-                <>
-                  <li
-                    className="nav-item d-flex align-items-center ms-lg-3 my-2 my-lg-0 vertice-userbox"
-                    ref={menuRef}
+                <li
+                  className="nav-item d-flex align-items-center ms-lg-3 my-2 my-lg-0 vertice-userbox"
+                  ref={menuRef}
+                >
+                  <button
+                    type="button"
+                    className="vertice-navbar__user vertice-userbox__btn"
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    aria-label="Cuenta de usuario"
+                    title="Cuenta de usuario"
+                    onClick={() => setMenuOpen((v) => !v)}
                   >
-                    <button
-                      type="button"
-                      className="vertice-navbar__user vertice-userbox__btn"
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpen}
-                      aria-label="Cuenta de usuario"
-                      title="Cuenta de usuario"
-                      onClick={() => setMenuOpen((v) => !v)}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
-                        <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                    <span className="nav-link px-0 ms-2 text-capitalize fw-semibold">
-                      {roleLabel}
-                    </span>
-                    {menuOpen && (
-                      <div className="vertice-userbox__menu" role="menu">
-                        <div className="vertice-userbox__meta">
-                          <div className="vertice-userbox__name text-capitalize">{user.username}</div>
-                          {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
-                        </div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M5 20 C6.8 15.2 17.2 15.2 19 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="nav-link bg-transparent border-0 px-0 ms-2 text-capitalize fw-semibold"
+                    style={{ color: 'var(--color-ink)', cursor: 'pointer' }}
+                    onClick={() => setMenuOpen((v) => !v)}
+                    aria-label={`Rol de usuario: ${roleLabel}`}
+                  >
+                    {roleLabel}
+                  </button>
+                  {menuOpen && (
+                    <div className="vertice-userbox__menu" role="menu">
+                      <div className="vertice-userbox__meta">
+                        <div className="vertice-userbox__name text-capitalize">{user.username}</div>
+                        {user.email && <div className="vertice-userbox__mail">{user.email}</div>}
                       </div>
-                    )}
-                  </li>
-                  <li className="nav-item ms-lg-2">
-                    <button
-                      type="button"
-                      className="btn btn-outline-dark btn-sm rounded-pill px-3 vertice-userbox__logout"
-                      onClick={handleLogout}
-                    >
-                      Cerrar sesión
-                    </button>
-                  </li>
-                </>
+                      <div className="vertice-userbox__divider" aria-hidden="true" />
+                      <Link
+                        to="/perfil"
+                        className="vertice-userbox__item"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Mi Perfil
+                      </Link>
+                      <Link
+                        to="/solicitudes"
+                        className="vertice-userbox__item"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Mis Solicitudes
+                      </Link>
+                      {canAccessPanel && (
+                        <>
+                          <div className="vertice-userbox__divider" aria-hidden="true" />
+                          <Link
+                            to="/admin"
+                            className="vertice-userbox__item"
+                            role="menuitem"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            Panel de Administración
+                          </Link>
+                        </>
+                      )}
+                      <div className="vertice-userbox__divider" aria-hidden="true" />
+                      <button
+                        type="button"
+                        className="vertice-userbox__item text-danger"
+                        role="menuitem"
+                        onClick={handleLogout}
+                      >
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  )}
+                </li>
               ) : (
-                <li className="nav-item ms-lg-2 vertice-userbox" ref={menuRef}>
+                <li className="nav-item ms-lg-3 my-2 my-lg-0 vertice-userbox" ref={menuRef}>
                   <button
                     type="button"
                     className="vertice-navbar__user vertice-userbox__btn"

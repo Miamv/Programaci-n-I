@@ -1,28 +1,31 @@
 import heroBundled from '../assets/hero.png';
 
+/**
+ * Configuración base de la plataforma Vértice.
+ *
+ * IMPORTANTE (Arquitectura Multiestudio):
+ * La identidad de cada estudio (nombre, especialidad, avatar, teléfono y email de contacto)
+ * proviene dinámicamente del backend (`ProfessionalProfile`).
+ * Este archivo sólo conserva recursos visuales por defecto de la plantilla base
+ * para evitar filtraciones de datos fijos entre distintos estudios.
+ */
 const studio = {
+  platformName: 'Vértice',
   name: 'Vértice',
-  tagline: 'Estudio de Diseño Industrial',
+  tagline: 'Plataforma de Portfolios de Arquitectura y Diseño',
   logo: '/favicon.svg',
   heroImage: heroBundled,
+  defaultLocation: import.meta.env.VITE_STUDIO_DEFAULT_LOCATION ?? 'Argentina',
+  buildGoogleEarthSearchUrl(query) {
+    return `https://earth.google.com/web/search/${encodeURIComponent(query)}`;
+  },
   contact: {
-    // Datos personales del estudio: se leen de variables de entorno
-    // (frontend/.env, nunca commiteado). Los valores aquí son solo
-    // placeholders para desarrollo sin .env.
-    phone: import.meta.env.VITE_STUDIO_PHONE ?? '+540000000000',
-    email: import.meta.env.VITE_STUDIO_EMAIL ?? 'contacto@estudio.example',
-    whatsappMessage: import.meta.env.VITE_STUDIO_WHATSAPP_MESSAGE ?? 'Hola, me interesa...',
+    phone: '',
+    email: '',
+    whatsappMessage:
+      import.meta.env.VITE_STUDIO_WHATSAPP_MESSAGE ??
+      'Hola, me gustaría realizar una consulta sobre un proyecto.',
   },
-  social: {
-    instagram: '#',
-    facebook: '#',
-  },
-  navLinks: [
-    { label: 'Home', href: '/' },
-    { label: 'Nosotros', href: '/#nosotros' },
-    { label: 'Proyectos', href: '/#proyectos' },
-    { label: 'Contacto', href: '/#contacto' },
-  ],
 };
 
 export default studio;

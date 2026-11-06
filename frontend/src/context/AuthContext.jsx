@@ -56,6 +56,7 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('auth_user');
+    try { sessionStorage.removeItem('vertice_active_studio_slug'); } catch { /* ignore */ }
           setUser(null);
         }
       })
@@ -234,12 +235,22 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('auth_user');
+    try { sessionStorage.removeItem('vertice_active_studio_slug'); } catch { /* ignore */ }
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((updatedFields) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const merged = { ...prev, ...updatedFields };
+      localStorage.setItem('auth_user', JSON.stringify(merged));
+      return merged;
+    });
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isAuthenticated, isLoading, login, register, logout }),
-    [user, isAuthenticated, isLoading, login, register, logout]
+    () => ({ user, isAuthenticated, isLoading, login, register, logout, updateUser }),
+    [user, isAuthenticated, isLoading, login, register, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

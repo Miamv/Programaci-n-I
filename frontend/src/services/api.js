@@ -10,9 +10,16 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const isPublicAuthEndpoint =
+    config.url?.includes('/auth/login/') ||
+    config.url?.includes('/auth/register/') ||
+    config.url?.includes('/auth/refresh/');
+
+  if (!isPublicAuthEndpoint) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
@@ -21,6 +28,11 @@ function clearSession() {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('auth_user');
+  try {
+    sessionStorage.removeItem('vertice_active_studio_slug');
+  } catch {
+    // Ignore storage errors
+  }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('auth:logout'));
   }
@@ -48,7 +60,7 @@ function refreshAccessToken() {
       })
       .catch((refreshErr) => {
         clearSession();
-        throw refreshErr;
+        return Promise.reject(refreshErr);
       })
       .finally(() => {
         refreshPromise = null;
@@ -85,12 +97,24 @@ api.interceptors.response.use(
   }
 );
 
-export function getProjects() {
-  return api.get('/projects/');
+export function getProjects(params) {
+  return params ? api.get('/projects/', { params }) : api.get('/projects/');
 }
 
-export function getProject(id) {
-  return api.get(`/projects/${id}/`);
+export function getProject(id, params) {
+  return params ? api.get(`/projects/${id}/`, { params }) : api.get(`/projects/${id}/`);
+}
+
+export function createProject(data) {
+  return api.post('/projects/', data);
+}
+
+export function updateProject(id, data) {
+  return api.patch(`/projects/${id}/`, data);
+}
+
+export function deleteProject(id) {
+  return api.delete(`/projects/${id}/`);
 }
 
 export function getApiOrigin() {
@@ -105,21 +129,106 @@ export function resolveMediaUrl(url) {
   return `${origin}${path}`;
 }
 
-export function getMedia(projectId) {
-  const params = projectId === undefined || projectId === null ? undefined : { project: projectId };
-  return params ? api.get('/media/', { params }) : api.get('/media/');
+export function getMedia(projectId, extraParams) {
+  const params = {
+    ...(extraParams || {}),
+    ...(projectId !== undefined && projectId !== null ? { project: projectId } : {}),
+  };
+  return Object.keys(params).length > 0 ? api.get('/media/', { params }) : api.get('/media/');
 }
 
-export function getProfiles() {
-  return api.get('/profiles/');
+export function createMedia(data) {
+  if (data instanceof FormData) {
+    return api.post('/media/', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post('/media/', data);
 }
 
-export function getBrands() {
-  return api.get('/brands/');
+export function updateMedia(id, data) {
+  if (data instanceof FormData) {
+    return api.patch(`/media/${id}/`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.patch(`/media/${id}/`, data);
+}
+
+export function deleteMedia(id) {
+  return api.delete(`/media/${id}/`);
+}
+
+export function getProfiles(params) {
+  return params ? api.get('/profiles/', { params }) : api.get('/profiles/');
+}
+
+export function getProfileBySlug(slug) {
+  return api.get(`/profiles/by-slug/${encodeURIComponent(slug)}/`);
+}
+
+export function getBrands(params) {
+  return params ? api.get('/brands/', { params }) : api.get('/brands/');
+}
+
+export function getAbout(params) {
+  return params ? api.get('/about/', { params }) : api.get('/about/');
+}
+
+export function createAbout(data) {
+  if (data instanceof FormData) {
+    return api.post('/about/', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post('/about/', data);
+}
+
+export function updateAbout(id, data) {
+  if (data instanceof FormData) {
+    return api.patch(`/about/${id}/`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.patch(`/about/${id}/`, data);
+}
+
+export function getTeam(params) {
+  return params ? api.get('/team/', { params }) : api.get('/team/');
+}
+
+export function createTeamMember(data) {
+  if (data instanceof FormData) {
+    return api.post('/team/', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post('/team/', data);
+}
+
+export function updateTeamMember(id, data) {
+  if (data instanceof FormData) {
+    return api.patch(`/team/${id}/`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.patch(`/team/${id}/`, data);
+}
+
+export function deleteTeamMember(id) {
+  return api.delete(`/team/${id}/`);
+}
+
+export function getContacts(params) {
+  return params ? api.get('/contacts/', { params }) : api.get('/contacts/');
 }
 
 export function sendContact(data) {
   return api.post('/contacts/', data);
+}
+
+export function deleteContact(id) {
+  return api.delete(`/contacts/${id}/`);
 }
 
 export function login(credentials) {
@@ -132,6 +241,10 @@ export function register(data) {
 
 export function getProfile() {
   return api.get('/auth/profile/');
+}
+
+export function updateProfile(data) {
+  return api.patch('/auth/profile/', data);
 }
 
 export function refreshToken(refresh) {

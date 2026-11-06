@@ -43,21 +43,31 @@ const OPTIONS = [
   },
 ];
 
-export default function ProjectDock({ mode, onSelect }) {
+export default function ProjectDock({ mode, onSelect, hasPlanos = true }) {
   return (
     <nav className="pv-dock" aria-label="Modos del proyecto">
-      {OPTIONS.map((opt) => (
-        <button
-          key={opt.key}
-          type="button"
-          className={`pv-dock__btn ${mode === opt.key ? 'is-active' : ''}`}
-          onClick={() => onSelect(opt.key)}
-          aria-pressed={mode === opt.key}
-        >
-          <span className="pv-dock__icon" aria-hidden="true">{opt.icon}</span>
-          {opt.label}
-        </button>
-      ))}
+      {OPTIONS.map((opt) => {
+        const isDisabled = opt.key === 'planos' && !hasPlanos;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            disabled={isDisabled}
+            aria-disabled={isDisabled}
+            title={isDisabled ? 'Sin planos disponibles para este proyecto' : opt.label}
+            className={`pv-dock__btn ${mode === opt.key ? 'is-active' : ''} ${isDisabled ? 'is-disabled' : ''}`}
+            onClick={() => {
+              if (!isDisabled) {
+                onSelect(opt.key);
+              }
+            }}
+            aria-pressed={mode === opt.key}
+          >
+            <span className="pv-dock__icon" aria-hidden="true">{opt.icon}</span>
+            {opt.label}
+          </button>
+        );
+      })}
     </nav>
   );
 }

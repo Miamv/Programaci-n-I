@@ -3,16 +3,19 @@ import { resolveMediaUrl } from '../services/api';
 export default function BrandsCarousel({ brands, error }) {
   const hasBrands = Array.isArray(brands) && brands.length > 0;
 
-  if (!hasBrands) {
+  // Ocultar el carrusel de marcas cuando el estudio no tiene marcas asociadas a sus proyectos ni error
+  if (!hasBrands && !error) {
+    return null;
+  }
+
+  if (!hasBrands && error) {
     return (
       <section className="vertice-brands" aria-label="Marcas">
         <div className="container">
           <div className="vertice-brands__frame">
-            {error ? (
-              <p className="vertice-brands__empty vertice-brands__empty--error">No se pudieron cargar las marcas. {error}</p>
-            ) : (
-              <p className="vertice-brands__empty">Aún no hay marcas para mostrar.</p>
-            )}
+            <p className="vertice-brands__empty vertice-brands__empty--error">
+              No se pudieron cargar las marcas. {error}
+            </p>
           </div>
         </div>
       </section>
